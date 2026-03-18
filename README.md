@@ -1,11 +1,6 @@
-# AI-Powered-Insurance-for-India-s-Gig-Economy
+# AI Powered Insurance for India's Gig Economy
 
 # 🛡️ GigWare — AI-Powered Parametric Income Insurance for India's Gig Economy
-
-> **Guidewire DEVTrails 2026 — University Hackathon**
-> *Protecting delivery workers from income loss caused by external disruptions*
-
----
 
 ## 📌 Problem Statement
 
@@ -143,23 +138,18 @@ Analytics & Model Retraining Pipeline
 
 ## 🤖 AI/ML Integration
 
-### 1. Dynamic Premium Calculation
-- **Model:** Gradient Boosting (XGBoost) trained on historical weather, AQI, and claim data
-- **Inputs:** Worker zone, season, flood risk index, historical AQI, claim history
-- **Output:** Personalized weekly premium with zone-based adjustments
+## AI/ML Integration
 
-### 2. Fraud Detection
-- **Anomaly Detection:** Isolation Forest on claim patterns (time, frequency, amount)
-- **Location Validation:** GPS coordinates cross-checked with reported disruption zone
-- **Behavioral Analysis:** Active hours vs. claimed disruption window
-- **Duplicate Prevention:** Policy ID + disruption event ID uniqueness check
-- **GPS Spoofing Detection:** Sensor fusion + velocity plausibility checks
+AI/ML is integrated into the system to enable intelligent pricing, detect fraudulent behavior, and ensure accurate automated payouts based on real-world environmental disruptions.
 
-### 3. Impact Analysis
-- **Model:** Regression model mapping disruption severity → estimated hours lost → income lost
-- **Inputs:** Disruption type, severity score, worker's average hourly earning, time of day
-- **Output:** Payout amount (capped at plan's weekly coverage limit)
-
+| AI Module | Input Data | AI Processing | Output | System Action |
+|----------|-----------|--------------|--------|--------------|
+| **Premium Calculation** | Historical rainfall, AQI, temperature, location data | Risk scoring model (predict disruption probability) | Risk Score (Low/Medium/High) | Weekly premium adjusted based on risk |
+| **Predictive Risk Modeling** | Historical environmental trends, seasonal patterns | Time-series / trend analysis | Disruption probability (e.g., high rain chance) | Used to refine pricing and risk assessment |
+| **Fraud Detection** | User activity, GPS location, claim history, device data | Anomaly detection model | Fraud Score (Low/High) | Suspicious claims blocked or flagged |
+| **Location & Activity Validation** | GPS data, login/activity logs | Pattern validation | Valid/Invalid user activity | Only eligible workers receive payouts |
+| **Disruption Impact Validation** | Rainfall/AQI data + historical order/activity trends | Correlation analysis | Impact level (Low/High) | Trigger payout only if real income loss likely |
+| **Income Loss Estimation (Optional)** | Worker earnings history, city averages, disruption severity | Regression / estimation model | Estimated income loss | Compensation amount calculated dynamically |
 ---
 
 ## 🏗️ Tech Stack
