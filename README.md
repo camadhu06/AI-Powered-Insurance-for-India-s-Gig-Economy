@@ -1,256 +1,173 @@
-# AI Powered Insurance for India's Gig Economy
+# GigWare — Parametric Income Insurance for Food Delivery Partners
 
-# 🛡️ GigWare — AI-Powered Parametric Income Insurance for India's Gig Economy
-
-## 📌 Problem Statement
-
-India's platform-based delivery partners (Zomato, Swiggy, Zepto, Amazon, Flipkart, etc.) are the backbone of the digital economy. External disruptions — extreme weather, severe pollution, floods, curfews, and local strikes — can reduce their working hours and cause **20–30% monthly income loss**. These workers have no financial safety net.
-
-**GigShield** is an AI-enabled parametric insurance platform that automatically detects disruptions, triggers claims, and pays out lost income — with zero manual intervention.
+> Every monsoon, every heatwave, every bandh —
+> Zomato and Swiggy partners lose income they can never recover.
+> No insurer covers them. GigWare does — automatically, before they even ask.
 
 ---
 
-## 🎯 Persona Focus
+## Who We're Building For
 
-**Segment: Food Delivery Partners** (Zomato / Swiggy)
-
-| Attribute | Detail |
-|---|---|
-| Platform | Zomato, Swiggy |
-| Work Pattern | 6–12 hrs/day, 6 days/week |
-| Avg Weekly Earnings | ₹3,000 – ₹6,000 |
-| Key Risk Zones | High-traffic urban corridors, flood-prone areas |
-| Primary Disruptions | Heavy rain, extreme heat, air quality alerts, curfews |
-
----
-
-## 🚨 Coverage Scope — Income Loss ONLY
-
-GigShield covers **lost income** from the following parametric triggers:
-
-| Disruption Type | Trigger Condition | Income Protection |
-|---|---|---|
-| **Heavy Rain** | Rainfall > 30mm/hr in the worker's zone | ₹300–₹600 per disrupted day |
-| **Extreme Heat** | Temperature > 43°C for 3+ consecutive hours | ₹200–₹400 per disrupted day |
-| **Severe Air Pollution** | AQI > 400 (Severe+) | ₹200–₹400 per disrupted day |
-| **Flooding** | Flood alert in worker's active delivery zone | ₹400–₹700 per disrupted day |
-| **Curfew / Civil Strike** | Govt-verified curfew/shutdown order | ₹300–₹600 per disrupted day |
-
-> ⚠️ **EXCLUDED:** Health, life, accidents, vehicle repairs, and any personal medical expenses.
-
----
-
-## 💰 Weekly Premium Model
-
-Premiums are structured on a **weekly basis** to match the gig worker's earnings cycle.
-
-```
-Base Weekly Premium = ₹49 – ₹99 / week
-
-Dynamic Adjustments (AI-Powered):
-  + Zone Risk Score      (flood-prone / heat index / AQI history)
-  + Seasonal Risk Factor (monsoon season surcharge)
-  - Safe Zone Discount   (historically low-disruption zones: −₹5 to −₹15/week)
-  - Loyalty Discount     (tenure > 3 months: −₹10/week)
-```
-
-**Tiers:**
-
-| Plan | Weekly Premium | Weekly Coverage Cap | Disruption Days Covered |
+| | Ravi | Priya | Arjun |
 |---|---|---|---|
-| Basic Shield | ₹49 | ₹1,500 | Up to 3 days |
-| Standard Shield | ₹79 | ₹2,500 | Up to 5 days |
-| Full Shield | ₹99 | ₹3,500 | Up to 7 days |
+| **Platform** | Zomato, Bengaluru | Swiggy, Delhi | Zomato, Mumbai |
+| **Daily Earnings** | ₹600–₹900 | ₹500–₹800 | ₹700–₹1,000 |
+| **Disruption** | Heavy monsoon rain | Extreme heat + AQI 400+ | Local strike + curfew |
+| **Without GigWare** | ₹240 on a ₹800 day | Forced off-road by 1pm | Zero deliveries, rent due |
+| **With GigWare** | ₹460 estimated loss — paid instantly | ₹310 estimated loss — paid instantly | ₹550 estimated loss — paid instantly |
+
+> One product. Three cities. Three disruptions. Zero claims filed.
 
 ---
 
-## 🗺️ Application Architecture
+## How GigWare Works
+```mermaid
+sequenceDiagram
+    participant D as Disruption Source
+    participant G as GigWare Engine
+    participant W as Worker App
+    participant F as Fraud Check
+    participant AI as AI Income Estimator
+    participant P as UPI Payment
 
-### Developer Flow
-
-```
-Frontend (Mobile App / Web App)
-        ↓
-API Gateway / Backend Server (Node.js + Express / FastAPI)
-        ↓
-User & Policy Management Service
-        ↓
-Data Ingestion Layer
-   • OpenWeatherMap API (Weather)
-   • CPCB / AQI India API (Pollution)
-   • Mock Traffic & Civic Alert APIs
-        ↓
-AI/ML Engine
-   ├── Risk Scoring Model        (zone + season + history)
-   ├── Fraud Detection Module    (anomaly + GPS + behavior)
-   └── Impact Analysis Engine   (hours lost → income lost)
-        ↓
-Trigger Engine (Parametric Rules Evaluator)
-        ↓
-Eligibility & Validation Service
-   • Active policy check
-   • Location-presence verification
-   • Duplicate claim guard
-        ↓
-Payout Engine (auto-approved if fraud score < threshold)
-        ↓
-Payment Gateway Integration
-   • Razorpay (test mode) / UPI Simulator
-        ↓
-Database (PostgreSQL / Firebase)
-   • Users, Policies, Claims, Disruption Logs
-        ↓
-Analytics & Model Retraining Pipeline
+    D->>G: Trigger threshold crossed
+    G->>W: Verify worker active in affected zone
+    W->>G: GPS + activity confirmed
+    G->>F: Run fraud analysis
+    F->>G: Fraud Score — Low
+    G->>AI: Hours lost + earnings history
+    AI->>G: Exact income loss estimated
+    G->>P: Payout within weekly plan limit
+    P->>W: Credited instantly
+    Note over W: Worker never filed anything
 ```
 
-### User (Worker) Flow
-
-```
-1. Worker Registration
-   └── Name, phone, platform, zone, avg weekly earnings
-
-2. Premium Subscription
-   └── AI calculates weekly premium → Worker selects plan → Auto-debit weekly
-
-3. External Data Collection (Real-time)
-   └── Weather APIs + AQI feeds monitor worker's active zone continuously
-
-4. AI Risk Analysis
-   └── Risk model evaluates severity + duration → Disruption confidence score
-
-5. Disruption Detection
-   └── Parametric trigger fires when threshold is crossed (e.g., rain > 30mm/hr)
-
-6. Automatic Claim Trigger
-   └── System auto-initiates claim — no manual filing required
-
-7. AI Fraud Detection
-   └── GPS check + activity log + behavioral anomaly analysis
-
-8. Compensation Payment
-   └── Funds transferred to UPI / wallet within minutes of trigger
-
-9. Data Storage & Model Improvement
-   └── Disruption + claim data feeds back into ML training pipeline
-```
+> Disruption hits. GigWare detects, verifies, estimates, and pays.
+> **They deliver. We protect what they earn.**
 
 ---
 
-## 🤖 AI/ML Integration
+## Parametric Triggers — What Sets Off a Claim
 
-## AI/ML Integration
+No forms. No assessors. Claims fire automatically when a real-time verified event crosses a defined threshold 
+in the worker's active zone.
 
-AI/ML is integrated into the system to enable intelligent pricing, detect fraudulent behavior, and ensure accurate automated payouts based on real-world environmental disruptions.
+| Trigger | Threshold | Data Source |
+|---|---|---|
+| Heavy Rain | > 30mm/hr in active zone | Open-Meteo |
+| Extreme Heat | > 43°C for 3+ consecutive hrs | Open-Meteo  |
+| Severe AQI | > 400 Severe+ | OpenAQ API | 
+| Flooding | Active flood warning issued | Open-Meteo | 
+| Curfew / Strike | Verified shutdown confirmed | Google News RSS | 
 
-| AI Module | Input Data | AI Processing | Output | System Action |
-|----------|-----------|--------------|--------|--------------|
-| **Premium Calculation** | Historical rainfall, AQI, temperature, location data | Risk scoring model (predict disruption probability) | Risk Score (Low/Medium/High) | Weekly premium adjusted based on risk |
-| **Predictive Risk Modeling** | Historical environmental trends, seasonal patterns | Time-series / trend analysis | Disruption probability (e.g., high rain chance) | Used to refine pricing and risk assessment |
-| **Fraud Detection** | User activity, GPS location, claim history, device data | Anomaly detection model | Fraud Score (Low/High) | Suspicious claims blocked or flagged |
-| **Location & Activity Validation** | GPS data, login/activity logs | Pattern validation | Valid/Invalid user activity | Only eligible workers receive payouts |
-| **Disruption Impact Validation** | Rainfall/AQI data + historical order/activity trends | Correlation analysis | Impact level (Low/High) | Trigger payout only if real income loss likely |
-| **Income Loss Estimation (Optional)** | Worker earnings history, city averages, disruption severity | Regression / estimation model | Estimated income loss | Compensation amount calculated dynamically |
+**Strike & curfew detection:**
+GigWare scans Google News RSS every 15 mins for keywords like "bandh", "curfew", and "Section 144". A trigger only fires when 85% confidence
+is reached across multiple credible sources — no rumours, no false payouts.
+
+> Coverage is income loss only.
+> Vehicle damage, health, and accidents are strictly excluded.
+
 ---
 
-## 🏗️ Tech Stack
+## Weekly Premium Model
 
-| Layer | Technology |
+Gig workers earn week to week — GigWare is priced the same way.
+
+
+| Plan | Weekly Premium | Weekly Cap | 
+|---|---|---|
+| Basic Shield | ₹49 | ₹1,500 | 
+| Standard Shield | ₹79 | ₹2,500 |
+| Full Shield | ₹99 | ₹3,500 | 
+
+Premium is auto-debited weekly via UPI or bank account — no manual action needed.
+Payouts are processed via Razorpay — supporting UPI, net banking, and wallet transfers.
+GigWare recommends the right plan during onboarding based on the
+worker's zone risk level and average weekly earnings.
+
+> If estimated loss exceeds the weekly cap, the worker receives the full weekly cap amount.
+> Plan limits are shown clearly at signup — no hidden terms.
+
+---
+
+## Platform Choice
+
+| | Worker App | Admin Dashboard |
+|---|---|---|
+| **Platform** | React Native (Mobile) | React.js (Web) |
+| **Why** | GPS, UPI, and push alerts are mobile-native | Fraud queues and analytics need screen space |
+| **Key Features** | Plan selection, zone status, payout alerts | Loss ratios, fraud review, claim history |
+
+---
+
+## AI/ML Architecture
+
+AI powers four things in GigWare — pricing, payout, fraud detection, and prediction.
+
+---
+
+### Module 1 — Zone Risk Scoring
+
+| | |
 |---|---|
-| **Frontend** | React Native (Mobile) / React.js (Web) |
-| **Backend** | Node.js + Express.js / Python FastAPI |
-| **Database** | PostgreSQL (relational) + Redis (cache) |
-| **AI/ML** | Python (scikit-learn, XGBoost, pandas) |
-| **Weather API** | OpenWeatherMap (free tier) |
-| **AQI API** | CPCB AQI India API / OpenAQ |
-| **Payment** | Razorpay (test mode) / UPI Simulator |
-| **Auth** | Firebase Auth / JWT |
-| **DevOps** | Docker, GitHub Actions (CI/CD) |
-| **Hosting** | Render / Railway (backend), Vercel (frontend) |
+| **Input** | Zone's historical rainfall, AQI, flood frequency, seasonal patterns |
+| **Model** | XGBoost classifier |
+| **Output** | Risk score — Low / Medium / High |
+| **Action** | Dynamically recalculates the worker's weekly premium every week based on zone risk and season |
 
+```mermaid
+flowchart LR
+    A[Zone History\n+ Season Data] --> M1[Zone Risk\nScoring]
+    M1 --> P[Weekly Premium]
+```
 ---
 
-## 🗓️ Development Roadmap
+### Module 2 — Income Loss Estimator
 
-### Phase 1 — Ideation & Foundation (March 4–20)
-- [x] Define persona: Zomato/Swiggy food delivery partners
-- [x] Design user flows (worker + admin)
-- [x] Finalize parametric trigger conditions
-- [x] Define weekly premium model structure
-- [x] Set up GitHub repository and project scaffold
-- [ ] Build basic registration UI prototype
-
-### Phase 2 — Automation & Protection (March 21–April 4)
-- [ ] Worker registration & onboarding flow
-- [ ] Insurance policy creation with weekly pricing
-- [ ] Dynamic premium calculator (AI-powered)
-- [ ] 3–5 automated parametric triggers (weather + AQI + mock civic API)
-- [ ] Claims management module
-- [ ] Zero-touch claim flow UX
-
-### Phase 3 — Scale & Optimise (April 5–17)
-- [ ] Advanced fraud detection (GPS spoofing, fake weather claims)
-- [ ] Instant payout system (Razorpay sandbox / UPI simulator)
-- [ ] Worker dashboard (earnings protected, weekly coverage status)
-- [ ] Admin/Insurer dashboard (loss ratios, predictive analytics)
-- [ ] Final 5-minute demo video
-- [ ] Final pitch deck (PDF)
-
----
-
-## 📂 Repository Structure
+| | |
+|---|---|
+| **Input** | Disruption duration, severity, worker's average hourly earnings |
+| **Model** | Regression model |
+| **Output** | Exact income lost in rupees |
+| **Action** | Payout amount — capped at weekly plan limit |
+```mermaid
+flowchart LR
+    B[Disruption Duration\n+ Earnings History] --> M2[Income Loss\nEstimator]
+    M2 --> PA[Payout Amount]
 
 ```
-gigshield/
-├── frontend/               # React Native / React.js app
-│   ├── screens/            # Onboarding, Dashboard, Claims
-│   └── components/
-├── backend/                # Node.js / FastAPI server
-│   ├── routes/             # API endpoints
-│   ├── services/           # Policy, Claims, Payout logic
-│   ├── triggers/           # Parametric rule engine
-│   └── integrations/       # Weather, AQI, Payment APIs
-├── ml/                     # AI/ML models
-│   ├── risk_model/         # Premium calculation model
-│   ├── fraud_detection/    # Anomaly & GPS fraud models
-│   └── impact_analysis/    # Income loss estimation
-├── database/               # Schema, migrations
-├── docs/                   # Architecture diagrams, pitch deck
-└── README.md
+---
+
+### Module 3 — Intelligent Fraud Detection
+
+| | |
+|---|---|
+| **Input** | GPS, accelerometer, order attempts, claim history, Google Maps traffic data, Zomato/Swiggy platform activity signals |
+| **Model** | Anomaly detection model |
+| **Output** | Fraud score 0–100 |
+| **Action** | Below 40 → approved. 41–70 → soft hold. Above 70 → blocked |
+
+- **Location validation** — GPS cross-checked against Google Maps traffic data
+- **Duplicate prevention** — same disruption cannot trigger more than one payout per worker
+- **Ring detection** — claims spiking 5x the zone baseline raises scrutiny for all claims in that zone. Genuine workers still 
+  auto-approve based on their individual fraud score.
+```mermaid
+flowchart LR
+    C[GPS + Sensors\n+ Traffic Data] --> M3[Fraud\nDetection]
+    M3 --> F[Approve /\nHold / Block]
 ```
-
 ---
 
-## 🏆 Key Differentiators
+### Module 4 — Predictive Disruption Alerts
 
-- **Zero-touch claims** — workers never file a claim; the system does it automatically
-- **Hyper-local pricing** — premiums adjust to the worker's specific delivery zone risk profile
-- **Weekly model** — aligns with gig worker earnings cycles; no monthly lock-in
-- **Multi-signal fraud detection** — combines GPS, behavioral, and historical data
-- **Instant payouts** — compensation transferred within minutes of a verified disruption
+Using weather, AQI, and traffic patterns, GigWare notifies workers
+24 hours before a likely disruption so they can maximise earnings before it hits.
 
+> GigWare doesn't just protect what workers earn.
+> It helps them earn more.
+```mermaid
+flowchart LR
+    D[Weather + AQI\n+ Traffic Data] --> M4[Predictive\nAlerts]
+    M4 --> AL[24hr Worker\nNotification]
+```
 ---
-
-## 👥 Team
-
-| Name | Role |
-|---|---|
-| [Team Member 1] | Full Stack Developer |
-| [Team Member 2] | ML/AI Engineer |
-| [Team Member 3] | Backend & API Integration |
-| [Team Member 4] | UI/UX & Frontend |
-
----
-
-## 📎 Submission Links
-
-| Deliverable | Link |
-|---|---|
-| GitHub Repository | *This repo* |
-| Phase 1 Demo Video (2 min) | *(To be added by March 20)* |
-| Phase 2 Demo Video (2 min) | *(To be added by April 4)* |
-| Final Demo Video (5 min) | *(To be added by April 17)* |
-| Final Pitch Deck (PDF) | *(To be added by April 17)* |
-
----
-
-> *GigShield — Because every delivery partner deserves a safety net.*
