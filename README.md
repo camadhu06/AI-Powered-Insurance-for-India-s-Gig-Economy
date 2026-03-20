@@ -191,15 +191,14 @@ A fraud ring gets caught by the group check — every time.
 
 ### 1. Anti-Spoofing — 6 Layer Defense
 
-| Layer | Genuine Worker | Bad Actor |
-|---|---|---|
-| **Mock Location Flag** | Off | Blocked instantly |
-| **Device Integrity** | Clean device | Play Integrity API / Apple App Attest catches tampering |
-| **Cell Tower** | Matches claimed zone | Matches home — not the zone |
-| **Movement Pattern** | Natural movement | Robotic straight lines |
-| **WiFi Cross-check** | Zone networks visible | Only home networks visible |
-| **Platform Activity** | Active on Zomato/Swiggy | Never logged in |
-
+| Layer | How It Works | Genuine Worker | Bad Actor |
+|---|---|---|---|
+| **Mock Location Flag** | Android built-in flag — detects if fake GPS is enabled | Off | Blocked instantly |
+| **Device Integrity** | Play Integrity API (Android) / Apple App Attest (iOS) | Clean device | Tampered device detected |
+| **Cell Tower** | Phone's connected tower must match GPS location | Matches claimed zone | Matches home — not the zone |
+| **Movement Pattern** | Real movement is irregular — fake GPS moves perfectly | Natural movement | Robotic straight lines |
+| **WiFi Cross-check** | Phone scans nearby WiFi — must match claimed zone | Zone networks visible | Only home networks visible |
+| **Platform Activity** | Platform confirms worker was online and attempting orders | Active on Zomato/Swiggy | Never logged in |
 ---
 
 ### 2. Detecting a Coordinated Ring
@@ -225,7 +224,7 @@ flowchart TD
     S -- Between\nthresholds --> LOCK[Revalidation on\nlocked original data]
     LOCK --> R{Recheck Result}
     R -- Passes --> PAY[Payout released\nautomatically]
-    R -- Fails --> HARD[No payment\nClear reason given\nResolved in an hour]
+    R -- Fails --> HARD[No payment\nClear reason given\nResolved in 2 hours]
     S -- Above high\nthreshold --> HARD
 ```
 
@@ -289,6 +288,8 @@ graph TD
 
 > *GigWare — Because every delivery partner deserves a safety net that pays itself.*
 
+
+---
 > Built for DEVTrails 2026 · Guidewire University Hackathon · Phase 1 Submission
 
 ---
