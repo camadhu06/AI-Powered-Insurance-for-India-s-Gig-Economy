@@ -293,9 +293,9 @@ graph TD
 | Member | Name |
 |---|---|
 | Member 1 | C A Madhumita |
-| Member 2 | Guduru Ritesh |
+| Member 2 | Kerubakar B |
 | Member 3 | Jeyani N |
-| Member 4 | Kerubakar B |
+| Member 4 | Guduru Ritesh |
 
 
 ---
