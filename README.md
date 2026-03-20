@@ -288,6 +288,15 @@ graph TD
 
 > *GigWare — Because every delivery partner deserves a safety net that pays itself.*
 
+## Team
+
+| Member | Name |
+|---|---|
+| Member 1 | C A Madhumita |
+| Member 2 | Guduru Ritesh |
+| Member 3 | Jeyani N |
+| Member 4 | Kerubakar B |
+
 
 ---
 > Built for DEVTrails 2026 · Guidewire University Hackathon · Phase 1 Submission
