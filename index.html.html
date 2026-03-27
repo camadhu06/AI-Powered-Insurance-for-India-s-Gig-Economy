@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GigWare Admin — Insurer Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ─────────────────────────────────────────────
+   ADMIN CSS
+───────────────────────────────────────────── */
+:root {
+  --orange:#FF5722; --dark:#0B0C0E; --dark2:#13151A; --dark3:#1A1D24;
+  --card:#1E2128; --border:#2A2D36; --text:#ECEEF2; --muted:#6B7280;
+  --muted2:#9CA3AF; --green:#10B981; --red:#EF4444; --amber:#F59E0B;
+  --blue:#3B82F6; --purple:#8B5CF6; --sidebar-w:240px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;min-height:100vh;}
+.sidebar{width:var(--sidebar-w);background:var(--dark2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid var(--border);}
+.logo-text{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--orange);letter-spacing:-0.5px;}
+.logo-text span{color:var(--text);}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.sidebar-nav{padding:16px 12px;flex:1;overflow-y:auto;}
+.nav-section-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin:16px 0 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted2);transition:all 0.2s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover{background:var(--dark3);color:var(--text);}
+.nav-item.active{background:rgba(255,87,34,0.12);color:var(--orange);}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);}
+.admin-badge{display:flex;align-items:center;gap:10px;background:var(--dark3);border-radius:10px;padding:10px 12px;}
+.admin-avatar{width:32px;height:32px;background:var(--orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
+.admin-name{font-size:13px;font-weight:600;}
+.admin-role{font-size:10px;color:var(--muted);}
+/* Worker Demo Button */
+.worker-demo-btn{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:white;background:var(--orange);border:none;width:100%;text-align:left;margin-top:4px;transition:opacity 0.2s;}
+.worker-demo-btn:hover{opacity:0.85;}
+/* Main */
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;}
+.topbar{background:var(--dark2);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.page-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.page-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.alert-pill{display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#EF4444;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.date-badge{background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--muted2);}
+.content{padding:24px 28px;overflow-y:auto;}
+.view{display:none;} .view.active{display:block;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;}
+.kpi-card.orange::before{background:var(--orange);} .kpi-card.green::before{background:var(--green);}
+.kpi-card.red::before{background:var(--red);} .kpi-card.blue::before{background:var(--blue);}
+.kpi-card.amber::before{background:var(--amber);} .kpi-card.purple::before{background:var(--purple);}
+.kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
+.kpi-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:6px;}
+.kpi-val.orange{color:var(--orange);} .kpi-val.green{color:var(--green);} .kpi-val.red{color:var(--red);}
+.kpi-val.blue{color:var(--blue);} .kpi-val.purple{color:var(--purple);}
+.kpi-change{font-size:12px;} .kpi-change.up{color:var(--green);} .kpi-change.down{color:var(--red);}
+.kpi-icon{position:absolute;right:16px;top:16px;font-size:24px;opacity:0.3;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.three-col{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.chart-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.chart-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.chart-badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;}
+.chart-badge.green{background:rgba(16,185,129,0.12);color:var(--green);}
+.chart-badge.red{background:rgba(239,68,68,0.12);color:var(--red);}
+.chart-badge.amber{background:rgba(245,158,11,0.12);color:var(--amber);}
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:24px;}
+.table-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.table-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.search-box{background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;padding:12px 20px;background:var(--dark3);border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s;cursor:pointer;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,0.02);}
+tbody td{padding:14px 20px;font-size:13px;}
+.td-name{font-weight:600;} .td-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.3px;}
+.pill.green{background:rgba(16,185,129,0.12);color:var(--green);} .pill.red{background:rgba(239,68,68,0.12);color:var(--red);}
+.pill.amber{background:rgba(245,158,11,0.12);color:var(--amber);} .pill.blue{background:rgba(59,130,246,0.12);color:var(--blue);}
+.pill.purple{background:rgba(139,92,246,0.12);color:var(--purple);}
+.feed-item{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);transition:background 0.15s;cursor:pointer;}
+.feed-item:last-child{border-bottom:none;} .feed-item:hover{background:rgba(255,255,255,0.02);}
+.feed-icon{font-size:28px;flex-shrink:0;} .feed-info{flex:1;}
+.feed-title{font-size:13px;font-weight:600;} .feed-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+.feed-right{text-align:right;}
+.feed-amount{font-size:14px;font-weight:700;color:var(--orange);font-family:'Syne',sans-serif;}
+.feed-time{font-size:11px;color:var(--muted);margin-top:2px;}
+.fraud-item{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);}
+.fraud-item:last-child{border-bottom:none;}
+.fraud-score-bar{flex:1;background:var(--dark3);border-radius:4px;height:6px;overflow:hidden;max-width:100px;}
+.fraud-score-fill{height:100%;border-radius:4px;}
+.fraud-score-fill.high{background:var(--red);} .fraud-score-fill.med{background:var(--amber);}
+.risk-map{background:var(--dark3);border-radius:12px;height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:13px;position:relative;overflow:hidden;margin-bottom:16px;}
+.risk-map::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 30px,rgba(255,255,255,0.015) 30px,rgba(255,255,255,0.015) 31px),repeating-linear-gradient(90deg,transparent,transparent 30px,rgba(255,255,255,0.015) 30px,rgba(255,255,255,0.015) 31px);}
+.map-pin{font-size:24px;animation:bounce 1.5s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.predict-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.predict-item:last-child{border-bottom:none;}
+.predict-emoji{font-size:22px;} .predict-label{flex:1;font-size:13px;}
+.predict-prob{font-size:13px;font-weight:700;font-family:'Syne',sans-serif;}
+.predict-bar-wrap{width:60px;background:var(--dark3);border-radius:4px;height:5px;overflow:hidden;}
+.predict-bar-fill{height:100%;border-radius:4px;background:var(--orange);}
+.btn-sm{background:var(--orange);color:white;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity 0.2s;}
+.btn-sm:hover{opacity:0.85;}
+.btn-outline{background:transparent;color:var(--muted2);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-outline:hover{border-color:var(--orange);color:var(--orange);}
+::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-track{background:var(--dark2);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ─────────────────────────────────────────────
+   WORKER APP MODAL
+───────────────────────────────────────────── */
+.worker-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center;}
+.worker-modal-overlay.open{display:flex;}
+.worker-modal-inner{position:relative;animation:modalIn 0.3s ease;}
+@keyframes modalIn{from{opacity:0;transform:scale(0.92) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close-btn{position:absolute;top:-14px;right:-14px;width:36px;height:36px;border-radius:50%;background:#fff;color:#111;font-size:17px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.5);z-index:10;}
+.modal-close-btn:hover{background:#eee;}
+
+/* ─────────────────────────────────────────────
+   WORKER PHONE UI  (all prefixed w-)
+───────────────────────────────────────────── */
+.w-phone{width:390px;height:820px;background:#0D0D0D;border-radius:44px;border:2px solid #2E2E2E;overflow:hidden;position:relative;box-shadow:0 40px 80px rgba(0,0,0,0.9),0 0 0 1px #333;font-family:'DM Sans',sans-serif;color:#F0F0F0;display:flex;flex-direction:column;}
+.w-nav-tabs{display:flex;background:#0a0a0a;border-top:1px solid #2E2E2E;flex-shrink:0;}
+.w-nav-tab{flex:1;padding:13px 0 10px;text-align:center;cursor:pointer;font-size:10px;color:#888;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:0.3px;transition:color 0.2s;border:none;background:none;outline:none;}
+.w-nav-tab .w-nav-icon{font-size:19px;display:block;margin-bottom:3px;}
+.w-nav-tab.active{color:#FF5722;}
+.w-screen{display:none;flex:1;overflow-y:auto;} .w-screen::-webkit-scrollbar{display:none;}
+.w-screen.active{display:block;animation:wfade 0.25s ease;}
+@keyframes wfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.w-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:21px;color:#FF5722;letter-spacing:-0.5px;}
+.w-logo span{color:#F0F0F0;}
+.w-toprow{display:flex;align-items:center;justify-content:space-between;padding:0 0 16px;}
+/* hero */
+.w-hero{background:linear-gradient(160deg,#1a0a00 0%,#0D0D0D 60%);padding:26px 22px 20px;position:relative;overflow:hidden;}
+.w-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,87,34,0.15) 0%,transparent 70%);border-radius:50%;}
+.w-badge{display:inline-block;background:rgba(255,87,34,0.15);border:1px solid rgba(255,87,34,0.3);color:#FF5722;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;margin-bottom:12px;letter-spacing:0.5px;}
+.w-hero-title{font-family:'Syne',sans-serif;font-size:25px;font-weight:800;line-height:1.2;margin-bottom:8px;}
+.w-hero-title em{color:#FF5722;font-style:normal;}
+.w-hero-sub{color:#888;font-size:12px;line-height:1.6;}
+/* form */
+.w-form{padding:18px 22px;}
+.w-label{font-size:10px;font-weight:500;color:#888;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;display:block;}
+.w-input{width:100%;background:#232323;border:1px solid #2E2E2E;border-radius:12px;padding:11px 14px;color:#F0F0F0;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:14px;outline:none;transition:border-color 0.2s;}
+.w-input:focus{border-color:#FF5722;} .w-input::placeholder{color:#555;}
+.w-platform-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.w-platform-card{background:#232323;border:2px solid #2E2E2E;border-radius:12px;padding:11px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:13px;font-weight:500;}
+.w-platform-card .w-emoji{font-size:20px;display:block;margin-bottom:4px;}
+.w-platform-card.selected{border-color:#FF5722;background:rgba(255,87,34,0.08);}
+.w-btn-primary{width:100%;background:#FF5722;color:white;border:none;border-radius:13px;padding:14px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;transition:opacity 0.2s,transform 0.1s;}
+.w-btn-primary:active{transform:scale(0.98);}
+/* profile */
+.w-profile-hero{background:linear-gradient(160deg,#1a0a00 0%,#0D0D0D 60%);padding:26px 22px 20px;position:relative;overflow:hidden;}
+.w-profile-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,87,34,0.15) 0%,transparent 70%);border-radius:50%;}
+.w-avatar{width:58px;height:58px;background:#FF5722;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:white;margin-bottom:10px;position:relative;z-index:1;}
+.w-profile-name{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;margin-bottom:2px;}
+.w-profile-platform{font-size:12px;color:#888;margin-bottom:8px;}
+.w-verified{display:inline-flex;align-items:center;gap:5px;background:rgba(0,200,83,0.12);border:1px solid rgba(0,200,83,0.25);color:#00C853;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
+.w-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 22px 0;}
+.w-info-card{background:#232323;border:1px solid #2E2E2E;border-radius:12px;padding:11px 13px;}
+.w-info-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;}
+.w-info-val{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.w-info-val.orange{color:#FF5722;} .w-info-val.green{color:#00C853;}
+.w-menu{margin:12px 22px 0;}
+.w-menu-item{display:flex;align-items:center;gap:11px;padding:11px 13px;background:#232323;border:1px solid #2E2E2E;border-radius:11px;font-size:12px;font-weight:500;cursor:pointer;margin-bottom:6px;}
+.w-menu-arrow{margin-left:auto;color:#888;}
+.w-btn-ghost{width:100%;background:transparent;color:#FF1744;border:1px solid rgba(255,23,68,0.3);border-radius:13px;padding:12px;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;}
+/* policy */
+.w-policy-header{background:linear-gradient(135deg,#1a0800,#0D0D0D);padding:22px 22px 20px;}
+.w-section-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:2px;}
+.w-section-sub{color:#888;font-size:12px;}
+.w-risk-box{margin:12px 22px 4px;background:#232323;border-radius:13px;padding:13px;border:1px solid #2E2E2E;}
+.w-risk-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:7px;}
+.w-risk-bar-wrap{background:#1E1E1E;border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;}
+.w-risk-bar{height:100%;border-radius:6px;background:linear-gradient(90deg,#00C853,#FFB300);width:38%;}
+.w-plan-cards{padding:14px 22px;display:flex;flex-direction:column;gap:10px;}
+.w-plan-card{background:#232323;border:2px solid #2E2E2E;border-radius:15px;padding:16px;cursor:pointer;transition:all 0.2s;position:relative;}
+.w-plan-card.selected-plan{border-color:#FF5722;background:linear-gradient(135deg,rgba(255,87,34,0.08),#232323);box-shadow:0 0 0 1px rgba(255,87,34,0.2);}
+.w-plan-card .w-rec-tag{position:absolute;top:11px;right:11px;background:#FF5722;color:white;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.w-plan-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px;}
+.w-plan-price{font-size:24px;font-weight:700;color:#FF5722;font-family:'Syne',sans-serif;}
+.w-plan-price span{font-size:12px;color:#888;font-family:'DM Sans';font-weight:400;}
+.w-plan-features{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+.w-plan-feature{font-size:11px;color:#888;display:flex;align-items:center;gap:6px;}
+.w-plan-feature::before{content:'✓';color:#00C853;font-weight:700;font-size:11px;}
+/* alert */
+.w-alert-header{background:linear-gradient(135deg,#1a0000,#0D0D0D);padding:22px 22px 16px;}
+.w-alert-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,23,68,0.15);border:1px solid rgba(255,23,68,0.4);color:#FF5252;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:10px;animation:pulse 2s infinite;}
+.w-dot-live{width:5px;height:5px;background:#FF5252;border-radius:50%;}
+.w-disruption-card{margin:0 22px 12px;background:#232323;border-radius:15px;overflow:hidden;border:1px solid #2E2E2E;}
+.w-disruption-top{background:linear-gradient(135deg,rgba(255,23,68,0.12),rgba(255,87,34,0.06));padding:16px;display:flex;align-items:center;gap:13px;border-bottom:1px solid #2E2E2E;}
+.w-disruption-type{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.w-disruption-loc{font-size:11px;color:#888;margin-top:2px;}
+.w-disruption-stats{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.w-stat-item{text-align:center;}
+.w-stat-val{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#FF5722;}
+.w-stat-key{font-size:9px;color:#888;margin-top:2px;}
+.w-flow-section{padding:0 22px 12px;}
+.w-flow-title{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;}
+.w-flow-step{display:flex;align-items:flex-start;gap:11px;padding:9px 0;position:relative;}
+.w-flow-step:not(:last-child)::after{content:'';position:absolute;left:13px;top:36px;width:2px;height:calc(100% - 10px);background:#2E2E2E;}
+.w-step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;z-index:1;}
+.w-step-dot.done{background:rgba(0,200,83,0.15);border:1.5px solid #00C853;}
+.w-step-dot.active{background:rgba(255,87,34,0.15);border:1.5px solid #FF5722;animation:pulse 1.5s infinite;}
+.w-step-dot.pending{background:#232323;border:1.5px solid #2E2E2E;}
+.w-step-name{font-size:12px;font-weight:500;} .w-step-desc{font-size:10px;color:#888;margin-top:1px;}
+.w-payout-banner{margin:0 22px 16px;background:linear-gradient(135deg,rgba(0,200,83,0.12),rgba(0,200,83,0.05));border:1px solid rgba(0,200,83,0.3);border-radius:13px;padding:14px 16px;display:flex;align-items:center;gap:11px;}
+.w-payout-amount{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;color:#00C853;}
+/* dashboard */
+.w-dash-header{background:linear-gradient(135deg,#0a0a1a,#0D0D0D);padding:22px 22px 16px;}
+.w-greeting{font-size:12px;color:#888;margin-bottom:2px;}
+.w-dash-name{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;}
+.w-coverage-card{margin:12px 22px;background:linear-gradient(135deg,#1c0f00,#1a1a00);border:1px solid rgba(255,87,34,0.2);border-radius:16px;padding:18px;position:relative;overflow:hidden;}
+.w-coverage-card::after{content:'🛡️';position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:46px;opacity:0.12;}
+.w-cov-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;}
+.w-cov-amount{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#FF5722;}
+.w-cov-week{font-size:11px;color:#888;margin-top:3px;}
+.w-cov-active{display:inline-flex;align-items:center;gap:5px;background:rgba(0,200,83,0.12);border:1px solid rgba(0,200,83,0.3);color:#00C853;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;margin-top:9px;}
+.w-stats-grid{padding:0 22px 12px;display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.w-stat-card{background:#232323;border:1px solid #2E2E2E;border-radius:11px;padding:12px;}
+.w-stat-card-val{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;}
+.w-stat-card-val.green{color:#00C853;} .w-stat-card-val.orange{color:#FF5722;} .w-stat-card-val.blue{color:#2979FF;} .w-stat-card-val.amber{color:#FFB300;}
+.w-stat-card-label{font-size:10px;color:#888;margin-top:3px;}
+.w-activity-section{padding:0 22px 18px;}
+.w-activity-title{font-size:10px;font-weight:600;margin-bottom:9px;color:#888;text-transform:uppercase;letter-spacing:0.8px;}
+.w-activity-item{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #2E2E2E;}
+.w-activity-item:last-child{border-bottom:none;}
+.w-activity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.w-activity-dot.green{background:#00C853;} .w-activity-dot.orange{background:#FF5722;} .w-activity-dot.blue{background:#2979FF;}
+.w-activity-text{flex:1;font-size:12px;}
+.w-activity-amount{font-size:12px;font-weight:600;color:#00C853;}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">Gig<span>Ware</span></div>
+    <div class="logo-sub">Admin Console</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <button class="nav-item active" onclick="switchView('overview',this)"><span class="nav-icon">📊</span> Dashboard</button>
+    <button class="nav-item" onclick="switchView('claims',this)"><span class="nav-icon">⚡</span> Live Claims</button>
+    <div class="nav-section-label">Management</div>
+    <button class="nav-item" onclick="switchView('workers',this)"><span class="nav-icon">👥</span> Workers</button>
+    <button class="nav-item" onclick="switchView('fraud',this)"><span class="nav-icon">🔍</span> Fraud Detection</button>
+    <button class="nav-item" onclick="switchView('analytics',this)"><span class="nav-icon">📈</span> Predictive Analytics</button>
+    <div class="nav-section-label">System</div>
+    <button class="nav-item" onclick="switchView('triggers',this)"><span class="nav-icon">🌦️</span> Trigger Config</button>
+    <div class="nav-section-label">Demo</div>
+    <button class="worker-demo-btn" onclick="openWorkerApp()"><span class="nav-icon">🚴</span> Worker App Demo</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-badge">
+      <div class="admin-avatar">AD</div>
+      <div><div class="admin-name">Admin User</div><div class="admin-role">Insurer · GigWare</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main">
+  <div class="topbar">
+    <div><div class="page-title" id="page-title">Dashboard Overview</div><div class="page-sub" id="page-sub">Real-time insurance operations · Bengaluru Region</div></div>
+    <div class="topbar-right">
+      <div class="alert-pill"><div class="dot"></div> 3 Active Disruptions</div>
+      <div class="date-badge">📅 Mar 19, 2026 · 14:32 IST</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="kpi-grid">
+        <div class="kpi-card orange"><div class="kpi-icon">👥</div><div class="kpi-label">Active Workers</div><div class="kpi-val orange">2,847</div><div class="kpi-change up">↑ 12% this week</div></div>
+        <div class="kpi-card green"><div class="kpi-icon">💰</div><div class="kpi-label">Premiums Collected</div><div class="kpi-val green">₹2.4L</div><div class="kpi-change up">↑ 8% vs last week</div></div>
+        <div class="kpi-card red"><div class="kpi-icon">📋</div><div class="kpi-label">Claims This Week</div><div class="kpi-val red">342</div><div class="kpi-change down">↑ 34% (rain event)</div></div>
+        <div class="kpi-card blue"><div class="kpi-icon">⚡</div><div class="kpi-label">Avg Payout Time</div><div class="kpi-val blue">4.2m</div><div class="kpi-change up">↓ 0.8m improvement</div></div>
+      </div>
+      <div class="three-col">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Claims vs Premiums (Weekly)</div><div class="chart-sub">Last 8 weeks · Bengaluru Region</div></div><div class="chart-badge green">Loss Ratio: 61%</div></div><canvas id="claimsChart" height="180"></canvas></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Disruption Mix</div><div class="chart-sub">This month's claims</div></div></div><canvas id="donutChart" height="180"></canvas></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Recent Auto-Claims</div><div style="display:flex;gap:8px;align-items:center;"><input class="search-box" type="text" placeholder="🔍  Search worker..."><button class="btn-sm">Export CSV</button></div></div>
+        <table><thead><tr><th>Worker</th><th>Disruption</th><th>Zone</th><th>Fraud Score</th><th>Payout</th><th>Status</th><th>Time</th></tr></thead><tbody>
+          <tr><td><div class="td-name">Ravi Kumar</div><div class="td-sub">Swiggy · ID #4821</div></td><td>🌧️ Heavy Rain</td><td>Koramangala</td><td><span class="pill green">12 / Low</span></td><td style="font-weight:600;color:var(--orange);">₹480</td><td><span class="pill green">Paid</span></td><td style="color:var(--muted);font-size:12px;">14:30</td></tr>
+          <tr><td><div class="td-name">Priya Sharma</div><div class="td-sub">Zomato · ID #3104</div></td><td>🌫️ AQI Spike</td><td>Indiranagar</td><td><span class="pill green">18 / Low</span></td><td style="font-weight:600;color:var(--orange);">₹320</td><td><span class="pill green">Paid</span></td><td style="color:var(--muted);font-size:12px;">13:45</td></tr>
+          <tr><td><div class="td-name">Mohammed Ali</div><div class="td-sub">Swiggy · ID #5592</div></td><td>🌧️ Heavy Rain</td><td>Whitefield</td><td><span class="pill amber">54 / Med</span></td><td style="font-weight:600;color:var(--orange);">₹410</td><td><span class="pill amber">Review</span></td><td style="color:var(--muted);font-size:12px;">13:12</td></tr>
+          <tr><td><div class="td-name">Anita Reddy</div><div class="td-sub">Zomato · ID #2278</div></td><td>🚫 Local Strike</td><td>JP Nagar</td><td><span class="pill green">9 / Low</span></td><td style="font-weight:600;color:var(--orange);">₹550</td><td><span class="pill green">Paid</span></td><td style="color:var(--muted);font-size:12px;">11:20</td></tr>
+          <tr><td><div class="td-name">Suresh Naik</div><div class="td-sub">Swiggy · ID #7734</div></td><td>🌡️ Extreme Heat</td><td>Electronic City</td><td><span class="pill red">81 / High</span></td><td style="font-weight:600;color:var(--muted);">₹380</td><td><span class="pill red">Flagged</span></td><td style="color:var(--muted);font-size:12px;">10:58</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <!-- LIVE CLAIMS -->
+    <div class="view" id="view-claims">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="kpi-card red"><div class="kpi-label">Active Disruptions</div><div class="kpi-val red">3</div><div class="kpi-change">🔴 Live right now</div></div>
+        <div class="kpi-card amber"><div class="kpi-label">Claims Processing</div><div class="kpi-val" style="color:var(--amber);">47</div><div class="kpi-change" style="color:var(--muted);">In queue</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Paid Out Today</div><div class="kpi-val green">₹84,320</div><div class="kpi-change up">342 workers protected</div></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:20px;">
+        <div class="chart-header"><div><div class="chart-title">🔴 Live Disruption Feed</div><div class="chart-sub">Auto-triggered claims · updating in real-time</div></div><span class="chart-badge red">3 Active</span></div>
+        <div class="feed-item"><div class="feed-icon">🌧️</div><div class="feed-info"><div class="feed-title">Heavy Rainfall — Koramangala, Indiranagar, HSR Layout</div><div class="feed-detail">124mm/hr · Threshold: 80mm/hr · 218 workers affected · GPS verified</div><div style="margin-top:6px;"><span class="pill green">Auto-claim active</span></div></div><div class="feed-right"><div class="feed-amount">₹52,400</div><div class="feed-time">Paying out · 14:28</div></div></div>
+        <div class="feed-item"><div class="feed-icon">🌫️</div><div class="feed-info"><div class="feed-title">Severe AQI Spike — Whitefield, Mahadevapura</div><div class="feed-detail">AQI 312 · Threshold: 250 · 94 workers affected</div><div style="margin-top:6px;"><span class="pill green">Auto-claim active</span></div></div><div class="feed-right"><div class="feed-amount">₹24,180</div><div class="feed-time">Paying out · 13:55</div></div></div>
+        <div class="feed-item"><div class="feed-icon">🚫</div><div class="feed-info"><div class="feed-title">Unplanned Market Strike — JP Nagar, Banashankari</div><div class="feed-detail">Zone closure confirmed · 30 workers affected · Social trigger</div><div style="margin-top:6px;"><span class="pill amber">Manual review required</span></div></div><div class="feed-right"><div class="feed-amount">₹7,740</div><div class="feed-time">Pending · 11:15</div></div></div>
+      </div>
+    </div>
+
+    <!-- WORKERS -->
+    <div class="view" id="view-workers">
+      <div class="kpi-grid">
+        <div class="kpi-card orange"><div class="kpi-label">Total Registered</div><div class="kpi-val orange">3,241</div><div class="kpi-change up">↑ 156 this week</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Active Policies</div><div class="kpi-val green">2,847</div><div class="kpi-change up">87.8% activation rate</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Swiggy Partners</div><div class="kpi-val blue">1,642</div><div class="kpi-change" style="color:var(--muted);">50.7% of base</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">Zomato Partners</div><div class="kpi-val purple">1,205</div><div class="kpi-change" style="color:var(--muted);">37.2% of base</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Worker Registry</div><div style="display:flex;gap:8px;"><input class="search-box" type="text" placeholder="🔍  Search by name, ID..."><button class="btn-sm">+ Add Worker</button></div></div>
+        <table><thead><tr><th>Worker</th><th>Platform</th><th>Zone</th><th>Plan</th><th>Weekly Premium</th><th>Risk Score</th><th>Status</th></tr></thead><tbody>
+          <tr><td><div class="td-name">Ravi Kumar</div><div class="td-sub">ID #4821 · Since Mar 10</div></td><td>🍔 Swiggy</td><td>Koramangala</td><td><span class="pill blue">Standard Shield</span></td><td>₹79/wk</td><td><span class="pill green">38 · Low</span></td><td><span class="pill green">Active</span></td></tr>
+          <tr><td><div class="td-name">Priya Sharma</div><div class="td-sub">ID #3104 · Since Feb 22</div></td><td>🛵 Zomato</td><td>Indiranagar</td><td><span class="pill purple">Full Shield</span></td><td>₹99/wk</td><td><span class="pill green">24 · Low</span></td><td><span class="pill green">Active</span></td></tr>
+          <tr><td><div class="td-name">Mohammed Ali</div><div class="td-sub">ID #5592 · Since Mar 1</div></td><td>🍔 Swiggy</td><td>Whitefield</td><td><span class="pill blue">Standard Shield</span></td><td>₹79/wk</td><td><span class="pill amber">54 · Med</span></td><td><span class="pill amber">Watch</span></td></tr>
+          <tr><td><div class="td-name">Anita Reddy</div><div class="td-sub">ID #2278 · Since Jan 14</div></td><td>🛵 Zomato</td><td>JP Nagar</td><td><span class="pill green">Basic Shield</span></td><td>₹49/wk</td><td><span class="pill green">9 · Low</span></td><td><span class="pill green">Active</span></td></tr>
+          <tr><td><div class="td-name">Suresh Naik</div><div class="td-sub">ID #7734 · Since Mar 5</div></td><td>🍔 Swiggy</td><td>Electronic City</td><td><span class="pill blue">Standard Shield</span></td><td>₹79/wk</td><td><span class="pill red">81 · High</span></td><td><span class="pill red">Flagged</span></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <!-- FRAUD -->
+    <div class="view" id="view-fraud">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="kpi-card red"><div class="kpi-label">High Risk Claims</div><div class="kpi-val red">7</div><div class="kpi-change down">Flagged for review</div></div>
+        <div class="kpi-card amber"><div class="kpi-label">Medium Risk</div><div class="kpi-val" style="color:var(--amber);">23</div><div class="kpi-change" style="color:var(--muted);">Under monitoring</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Fraud Prevented</div><div class="kpi-val green">₹38,200</div><div class="kpi-change up">This month</div></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-header"><div class="chart-title">🚨 Flagged Claims — High Risk</div></div>
+          <div class="fraud-item"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Suresh Naik #7734</div><div style="font-size:11px;color:var(--muted);">GPS mismatch · 3rd claim this week</div></div><div class="fraud-score-bar"><div class="fraud-score-fill high" style="width:81%"></div></div><span class="pill red" style="margin-left:8px;">81</span><button class="btn-sm" style="margin-left:8px;">Review</button></div>
+          <div class="fraud-item"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Kiran Patil #8823</div><div style="font-size:11px;color:var(--muted);">Claimed outside disruption zone</div></div><div class="fraud-score-bar"><div class="fraud-score-fill high" style="width:76%"></div></div><span class="pill red" style="margin-left:8px;">76</span><button class="btn-sm" style="margin-left:8px;">Review</button></div>
+          <div class="fraud-item"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Ramesh Gowda #6612</div><div style="font-size:11px;color:var(--muted);">Duplicate device ID detected</div></div><div class="fraud-score-bar"><div class="fraud-score-fill high" style="width:69%"></div></div><span class="pill red" style="margin-left:8px;">69</span><button class="btn-sm" style="margin-left:8px;">Review</button></div>
+          <div class="fraud-item"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Vinod Rao #9941</div><div style="font-size:11px;color:var(--muted);">App inactive during claimed hours</div></div><div class="fraud-score-bar"><div class="fraud-score-fill med" style="width:58%"></div></div><span class="pill amber" style="margin-left:8px;">58</span><button class="btn-outline" style="margin-left:8px;">Watch</button></div>
+        </div>
+        <div class="chart-card"><div class="chart-header"><div class="chart-title">Fraud Signal Breakdown</div><div class="chart-sub">What triggers flags</div></div><canvas id="fraudChart" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="view" id="view-analytics">
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-header"><div><div class="chart-title">📅 Next Week Disruption Forecast</div><div class="chart-sub">AI prediction · Bengaluru Region · Mar 20–26</div></div><span class="chart-badge amber">High Risk Week</span></div>
+          <div class="predict-item"><div class="predict-emoji">🌧️</div><div class="predict-label">Heavy Rain Event</div><div class="predict-bar-wrap"><div class="predict-bar-fill" style="width:82%"></div></div><div class="predict-prob" style="color:var(--red);">82%</div></div>
+          <div class="predict-item"><div class="predict-emoji">🌡️</div><div class="predict-label">Extreme Heat</div><div class="predict-bar-wrap"><div class="predict-bar-fill" style="width:61%"></div></div><div class="predict-prob" style="color:var(--amber);">61%</div></div>
+          <div class="predict-item"><div class="predict-emoji">🌫️</div><div class="predict-label">AQI Spike</div><div class="predict-bar-wrap"><div class="predict-bar-fill" style="width:45%"></div></div><div class="predict-prob" style="color:var(--amber);">45%</div></div>
+          <div class="predict-item"><div class="predict-emoji">🌊</div><div class="predict-label">Flooding Risk</div><div class="predict-bar-wrap"><div class="predict-bar-fill" style="width:28%"></div></div><div class="predict-prob" style="color:var(--green);">28%</div></div>
+          <div class="predict-item"><div class="predict-emoji">🚫</div><div class="predict-label">Strike / Curfew</div><div class="predict-bar-wrap"><div class="predict-bar-fill" style="width:15%"></div></div><div class="predict-prob" style="color:var(--green);">15%</div></div>
+          <div style="margin-top:14px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:12px;color:var(--amber);">⚠️ AI recommends increasing reserve pool by 22% for next week based on weather forecast data.</div>
+        </div>
+        <div class="chart-card"><div class="chart-header"><div class="chart-title">Loss Ratio Trend</div><div class="chart-sub">8-week rolling · Target: &lt;70%</div></div><canvas id="lossChart" height="260"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header"><div class="chart-title">Zone-wise Risk Heatmap — Bengaluru</div><div class="chart-sub">Based on historical claim frequency</div></div>
+        <div class="risk-map"><div class="map-pin">📍</div><div style="position:relative;z-index:1;">Interactive zone map · Whitefield (High) · Koramangala (Med) · JP Nagar (Low)</div><div style="position:relative;z-index:1;font-size:11px;">Integrate with Google Maps API in Phase 2</div></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
+          <div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--red);font-weight:600;">Whitefield</div><div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:var(--red);">78</div><div style="font-size:10px;color:var(--muted);">High Risk</div></div>
+          <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--amber);font-weight:600;">Koramangala</div><div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:var(--amber);">52</div><div style="font-size:10px;color:var(--muted);">Med Risk</div></div>
+          <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--amber);font-weight:600;">Indiranagar</div><div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:var(--amber);">47</div><div style="font-size:10px;color:var(--muted);">Med Risk</div></div>
+          <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--green);font-weight:600;">JP Nagar</div><div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:var(--green);">31</div><div style="font-size:10px;color:var(--muted);">Low Risk</div></div>
+          <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--green);font-weight:600;">Elec. City</div><div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:var(--green);">22</div><div style="font-size:10px;color:var(--muted);">Low Risk</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIGGERS -->
+    <div class="view" id="view-triggers">
+      <div class="chart-card" style="margin-bottom:20px;">
+        <div class="chart-header"><div class="chart-title">⚙️ Parametric Trigger Configuration</div><div class="chart-sub">Set thresholds for automated claim initiation</div></div>
+        <table style="margin-top:8px;"><thead><tr><th>Trigger</th><th>Parameter</th><th>Threshold</th><th>Current Value</th><th>Status</th><th>Action</th></tr></thead><tbody>
+          <tr><td>🌧️ Heavy Rain</td><td>Rainfall mm/hr</td><td style="font-weight:600;">≥ 80 mm/hr</td><td style="color:var(--red);font-weight:600;">124 mm/hr 🔴</td><td><span class="pill red">Triggered</span></td><td><button class="btn-outline">Edit</button></td></tr>
+          <tr><td>🌡️ Extreme Heat</td><td>Temperature °C</td><td style="font-weight:600;">≥ 42°C</td><td style="color:var(--green);font-weight:600;">38°C ✓</td><td><span class="pill green">Normal</span></td><td><button class="btn-outline">Edit</button></td></tr>
+          <tr><td>🌫️ AQI Spike</td><td>Air Quality Index</td><td style="font-weight:600;">≥ 250 AQI</td><td style="color:var(--red);font-weight:600;">312 AQI 🔴</td><td><span class="pill red">Triggered</span></td><td><button class="btn-outline">Edit</button></td></tr>
+          <tr><td>🌊 Flood</td><td>IMD Flood Alert</td><td style="font-weight:600;">Level 2+</td><td style="color:var(--green);font-weight:600;">Level 0 ✓</td><td><span class="pill green">Normal</span></td><td><button class="btn-outline">Edit</button></td></tr>
+          <tr><td>🚫 Strike/Curfew</td><td>Zone Closure API</td><td style="font-weight:600;">Confirmed closure</td><td style="color:var(--amber);font-weight:600;">JP Nagar 🟡</td><td><span class="pill amber">Manual</span></td><td><button class="btn-outline">Edit</button></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ═══════ WORKER APP MODAL ═══════ -->
+<div class="worker-modal-overlay" id="workerModal" onclick="handleOverlayClick(event)">
+  <div class="worker-modal-inner">
+    <button class="modal-close-btn" onclick="closeWorkerApp()">✕</button>
+
+    <div class="w-phone">
+
+      <!-- SCREEN 1: ACCOUNT -->
+      <div class="w-screen active" id="ws-onboard">
+        <!-- Register State -->
+        <div id="w-reg">
+          <div class="w-hero">
+            <div class="w-toprow"><div class="w-logo">Gig<span>Ware</span></div><div style="font-size:10px;color:#888;">Income Protection</div></div>
+            <div class="w-badge">🚴 FOR DELIVERY PARTNERS</div>
+            <div class="w-hero-title">Your income,<br><em>protected.</em><br>Always.</div>
+            <div class="w-hero-sub" style="margin-top:8px;">When rain stops you, we pay you.<br>No forms. No waiting. Instant UPI.</div>
+          </div>
+          <div class="w-form">
+            <label class="w-label">Full Name</label><input class="w-input" type="text" value="Ravi Kumar">
+            <label class="w-label">Mobile Number</label><input class="w-input" type="tel" value="+91 98765 43210">
+            <label class="w-label">Your City</label><input class="w-input" type="text" value="Bengaluru">
+            <label class="w-label">Avg. Weekly Earnings (₹)</label><input class="w-input" type="number" value="4800">
+            <label class="w-label">Delivery Platform</label>
+            <div class="w-platform-grid">
+              <div class="w-platform-card selected" onclick="wSelPlat(this)"><span class="w-emoji">🍔</span>Swiggy</div>
+              <div class="w-platform-card" onclick="wSelPlat(this)"><span class="w-emoji">🛵</span>Zomato</div>
+            </div>
+            <button class="w-btn-primary" onclick="wRegDone()">Get My Weekly Plan →</button>
+          </div>
+        </div>
+        <!-- Profile State -->
+        <div id="w-prof" style="display:none;">
+          <div class="w-profile-hero">
+            <div class="w-toprow"><div class="w-logo">Gig<span>Ware</span></div><div style="font-size:10px;color:#888;">My Account</div></div>
+            <div class="w-avatar">RK</div>
+            <div class="w-profile-name">Ravi Kumar</div>
+            <div class="w-profile-platform">🍔 Swiggy Partner &nbsp;·&nbsp; 📍 Bengaluru</div>
+            <div class="w-verified">✓ &nbsp;Verified Member</div>
+          </div>
+          <div class="w-info-grid">
+            <div class="w-info-card"><div class="w-info-label">Active Plan</div><div class="w-info-val orange">Standard Shield</div></div>
+            <div class="w-info-card"><div class="w-info-label">Weekly Premium</div><div class="w-info-val">₹79 / wk</div></div>
+            <div class="w-info-card"><div class="w-info-label">Weekly Cap</div><div class="w-info-val green">₹2,500</div></div>
+            <div class="w-info-card"><div class="w-info-label">Member Since</div><div class="w-info-val" style="font-size:12px;">Mar 19, 2026</div></div>
+          </div>
+          <div class="w-menu">
+            <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:7px;">Settings</div>
+            <div class="w-menu-item">📱 <span>Mobile: +91 98765 43210</span><span class="w-menu-arrow">›</span></div>
+            <div class="w-menu-item">💳 <span>UPI: ravi.kumar@upi</span><span class="w-menu-arrow">›</span></div>
+            <div class="w-menu-item">🔔 <span>Notifications: On</span><span class="w-menu-arrow">›</span></div>
+            <div class="w-menu-item">📄 <span>View Policy Documents</span><span class="w-menu-arrow">›</span></div>
+            <button class="w-btn-ghost" onclick="wLogout()">Log Out</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN 2: POLICY -->
+      <div class="w-screen" id="ws-policy">
+        <div class="w-policy-header">
+          <div class="w-toprow"><div class="w-logo">Gig<span>Ware</span></div></div>
+          <div class="w-section-title">Choose Your Plan</div>
+          <div class="w-section-sub">Weekly coverage. Cancel anytime.</div>
+        </div>
+        <div class="w-risk-box">
+          <div class="w-risk-label">AI Risk Score — Bengaluru South Zone</div>
+          <div class="w-risk-bar-wrap"><div class="w-risk-bar"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;"><span style="color:#888;">Low Risk Zone ✓</span><span style="color:#FFB300;font-weight:600;">38 / 100</span></div>
+          <div style="font-size:10px;color:#888;">📉 Premium ₹12 lower than average — low historical flood risk zone.</div>
+        </div>
+        <div class="w-plan-cards">
+          <div class="w-plan-card" onclick="wSelPlan(this,'Basic Shield')">
+            <div class="w-plan-name">Basic Shield</div><div class="w-plan-price">₹49 <span>/ week</span></div>
+            <div class="w-plan-features"><div class="w-plan-feature">Weekly cap up to ₹1,500</div><div class="w-plan-feature">Rain + Extreme Heat triggers</div><div class="w-plan-feature">UPI payout in 10 mins</div></div>
+          </div>
+          <div class="w-plan-card selected-plan" onclick="wSelPlan(this,'Standard Shield')">
+            <div class="w-rec-tag">BEST VALUE</div>
+            <div class="w-plan-name">Standard Shield</div><div class="w-plan-price">₹79 <span>/ week</span></div>
+            <div class="w-plan-features"><div class="w-plan-feature">Weekly cap up to ₹2,500</div><div class="w-plan-feature">Rain + Heat + AQI + Flood + Strike</div><div class="w-plan-feature">UPI payout in 5 mins</div><div class="w-plan-feature">Priority fraud-free processing</div></div>
+          </div>
+          <div class="w-plan-card" onclick="wSelPlan(this,'Full Shield')">
+            <div class="w-plan-name">Full Shield</div><div class="w-plan-price">₹99 <span>/ week</span></div>
+            <div class="w-plan-features"><div class="w-plan-feature">Weekly cap up to ₹3,500</div><div class="w-plan-feature">All 7 disruption triggers</div><div class="w-plan-feature">Instant payout &lt; 2 mins</div><div class="w-plan-feature">Dedicated support agent</div></div>
+          </div>
+        </div>
+        <div style="padding:0 22px 20px;">
+          <button class="w-btn-primary" id="w-act-btn" onclick="wTab('disruption')">Activate Standard Shield →</button>
+          <div style="text-align:center;margin-top:9px;font-size:10px;color:#888;">Auto-renews weekly • Cancel anytime • No hidden charges</div>
+        </div>
+      </div>
+
+      <!-- SCREEN 3: ALERT -->
+      <div class="w-screen" id="ws-disruption">
+        <div class="w-alert-header">
+          <div class="w-toprow"><div class="w-logo">Gig<span>Ware</span></div></div>
+          <div class="w-alert-badge"><div class="w-dot-live"></div> LIVE DISRUPTION DETECTED</div>
+          <div class="w-section-title" style="font-size:16px;">Claim auto-processing<br>in progress...</div>
+        </div>
+        <div class="w-disruption-card">
+          <div class="w-disruption-top">
+            <div style="font-size:36px;">🌧️</div>
+            <div><div class="w-disruption-type">Heavy Rainfall</div><div class="w-disruption-loc">📍 Bengaluru South — Koramangala Zone</div><div style="font-size:10px;color:#888;margin-top:2px;">Triggered: 124mm/hr — Threshold: 80mm/hr</div></div>
+          </div>
+          <div class="w-disruption-stats">
+            <div class="w-stat-item"><div class="w-stat-val">3.2h</div><div class="w-stat-key">Hours Lost</div></div>
+            <div class="w-stat-item"><div class="w-stat-val">14:30</div><div class="w-stat-key">Alert Time</div></div>
+            <div class="w-stat-item"><div class="w-stat-val">124mm</div><div class="w-stat-key">Rainfall</div></div>
+          </div>
+        </div>
+        <div class="w-flow-section">
+          <div class="w-flow-title">Automated claim flow</div>
+          <div class="w-flow-step"><div class="w-step-dot done">✓</div><div><div class="w-step-name">Disruption Detected</div><div class="w-step-desc">OpenWeather API — 124mm/hr rain confirmed</div></div></div>
+          <div class="w-flow-step"><div class="w-step-dot done">✓</div><div><div class="w-step-name">Worker Verified in Zone</div><div class="w-step-desc">GPS + Swiggy activity confirmed at 14:28</div></div></div>
+          <div class="w-flow-step"><div class="w-step-dot done">✓</div><div><div class="w-step-name">Fraud Check Passed</div><div class="w-step-desc">Fraud score: 12/100 — Low risk</div></div></div>
+          <div class="w-flow-step"><div class="w-step-dot active">⟳</div><div><div class="w-step-name">Income Loss Calculated</div><div class="w-step-desc">AI estimating based on earnings history...</div></div></div>
+          <div class="w-flow-step"><div class="w-step-dot pending">○</div><div><div class="w-step-name">UPI Payout Triggered</div><div class="w-step-desc">Pending — estimated in 2 mins</div></div></div>
+        </div>
+        <div class="w-payout-banner"><div style="font-size:26px;">💸</div><div><div class="w-payout-amount">₹480</div><div style="font-size:10px;color:#888;margin-top:2px;">Estimated payout • Credited to UPI shortly</div></div></div>
+        <div style="padding:0 22px 20px;"><div style="background:#232323;border-radius:11px;padding:11px 13px;border:1px solid #2E2E2E;font-size:11px;color:#888;line-height:1.6;">🔔 SMS + UPI notification once credited. <strong style="color:#F0F0F0;">You did not need to file anything.</strong></div></div>
+      </div>
+
+      <!-- SCREEN 4: DASHBOARD -->
+      <div class="w-screen" id="ws-dashboard">
+        <div class="w-dash-header">
+          <div class="w-toprow"><div class="w-logo">Gig<span>Ware</span></div><div style="width:30px;height:30px;background:#FF5722;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">RK</div></div>
+          <div class="w-greeting">Good afternoon 👋</div>
+          <div class="w-dash-name">Ravi Kumar</div>
+        </div>
+        <div class="w-coverage-card">
+          <div class="w-cov-label">This Week's Coverage</div><div class="w-cov-amount">₹2,500</div>
+          <div class="w-cov-week">Standard Shield • Mar 17 – Mar 23, 2026</div>
+          <div class="w-cov-active"><div style="width:5px;height:5px;background:#00C853;border-radius:50%;"></div> Active</div>
+        </div>
+        <div class="w-stats-grid">
+          <div class="w-stat-card"><div class="w-stat-card-val green">₹1,240</div><div class="w-stat-card-label">Total Earned Back</div></div>
+          <div class="w-stat-card"><div class="w-stat-card-val orange">3</div><div class="w-stat-card-label">Claims This Month</div></div>
+          <div class="w-stat-card"><div class="w-stat-card-val blue">4.2 min</div><div class="w-stat-card-label">Avg. Payout Time</div></div>
+          <div class="w-stat-card"><div class="w-stat-card-val amber">₹79</div><div class="w-stat-card-label">Weekly Premium</div></div>
+        </div>
+        <div class="w-activity-section">
+          <div class="w-activity-title">Recent Activity</div>
+          <div class="w-activity-item"><div class="w-activity-dot green"></div><div class="w-activity-text"><div>Heavy Rain — Koramangala</div><div style="font-size:10px;color:#888;">Today, 2:30 PM • Auto-claimed</div></div><div class="w-activity-amount">+₹480</div></div>
+          <div class="w-activity-item"><div class="w-activity-dot green"></div><div class="w-activity-text"><div>AQI Spike — Indiranagar</div><div style="font-size:10px;color:#888;">Mar 15 • Auto-claimed</div></div><div class="w-activity-amount">+₹320</div></div>
+          <div class="w-activity-item"><div class="w-activity-dot orange"></div><div class="w-activity-text"><div>Standard Shield Renewed</div><div style="font-size:10px;color:#888;">Mar 17 • Auto-deducted</div></div><div style="font-size:12px;font-weight:600;color:#888;">-₹79</div></div>
+          <div class="w-activity-item"><div class="w-activity-dot green"></div><div class="w-activity-text"><div>Local Strike — JP Nagar</div><div style="font-size:10px;color:#888;">Mar 12 • Auto-claimed</div></div><div class="w-activity-amount">+₹440</div></div>
+          <div class="w-activity-item"><div class="w-activity-dot blue"></div><div class="w-activity-text"><div>Account Created</div><div style="font-size:10px;color:#888;">Mar 10</div></div><div style="font-size:10px;color:#888;">Welcome!</div></div>
+        </div>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="w-nav-tabs">
+        <button class="w-nav-tab active" id="wtab-onboard" onclick="wTab('onboard')"><span class="w-nav-icon">👤</span>Account</button>
+        <button class="w-nav-tab" id="wtab-policy" onclick="wTab('policy')"><span class="w-nav-icon">🛡️</span>Policy</button>
+        <button class="w-nav-tab" id="wtab-disruption" onclick="wTab('disruption')"><span class="w-nav-icon">⚡</span>Alert</button>
+        <button class="w-nav-tab" id="wtab-dashboard" onclick="wTab('dashboard')"><span class="w-nav-icon">📊</span>Dashboard</button>
+      </div>
+    </div><!-- /w-phone -->
+  </div><!-- /worker-modal-inner -->
+</div><!-- /worker-modal-overlay -->
+
+<script>
+/* ── ADMIN NAVIGATION ── */
+function switchView(view, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  el.classList.add('active');
+  const t = { overview:['Dashboard Overview','Real-time insurance operations · Bengaluru Region'], claims:['Live Claims','Active disruptions & auto-processing'], workers:['Worker Registry','All registered delivery partners'], fraud:['Fraud Detection','AI anomaly detection & risk scoring'], analytics:['Predictive Analytics','Forecasting & loss ratio insights'], triggers:['Trigger Configuration','Parametric event thresholds'] };
+  document.getElementById('page-title').textContent = t[view][0];
+  document.getElementById('page-sub').textContent   = t[view][1];
+  if (view==='overview' && !window.chartsInit) initCharts();
+  if (view==='fraud'    && !window.fraudInit)  initFraudChart();
+  if (view==='analytics'&& !window.lossInit)   initLossChart();
+}
+
+/* ── WORKER MODAL ── */
+function openWorkerApp()  { document.getElementById('workerModal').classList.add('open'); }
+function closeWorkerApp() { document.getElementById('workerModal').classList.remove('open'); }
+function handleOverlayClick(e) { if (e.target===document.getElementById('workerModal')) closeWorkerApp(); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeWorkerApp(); });
+
+/* ── WORKER APP ── */
+function wTab(tab) {
+  document.querySelectorAll('.w-screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.w-nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('ws-' + tab).classList.add('active');
+  document.getElementById('wtab-' + tab).classList.add('active');
+}
+function wSelPlat(el) { document.querySelectorAll('.w-platform-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); }
+function wSelPlan(el, name) {
+  document.querySelectorAll('.w-plan-card').forEach(c => c.classList.remove('selected-plan'));
+  el.classList.add('selected-plan');
+  const b = document.getElementById('w-act-btn'); if(b) b.textContent = 'Activate ' + name + ' →';
+}
+function wRegDone() { document.getElementById('w-reg').style.display='none'; document.getElementById('w-prof').style.display='block'; wTab('policy'); }
+function wLogout()  { document.getElementById('w-reg').style.display='block'; document.getElementById('w-prof').style.display='none'; }
+
+/* ── CHARTS ── */
+const cd = { plugins:{legend:{labels:{color:'#9CA3AF',font:{family:'DM Sans'}}}}, scales:{x:{ticks:{color:'#6B7280'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#6B7280'},grid:{color:'rgba(255,255,255,0.04)'}}} };
+function initCharts() {
+  window.chartsInit=true;
+  new Chart(document.getElementById('claimsChart'),{type:'bar',data:{labels:['Feb 1','Feb 8','Feb 15','Feb 22','Mar 1','Mar 8','Mar 15','Mar 19'],datasets:[{label:'Premiums (₹)',data:[180000,195000,210000,225000,230000,240000,235000,242000],backgroundColor:'rgba(16,185,129,0.6)',borderRadius:6},{label:'Claims Paid (₹)',data:[95000,88000,120000,105000,98000,145000,160000,148000],backgroundColor:'rgba(255,87,34,0.6)',borderRadius:6}]},options:{...cd,responsive:true}});
+  new Chart(document.getElementById('donutChart'),{type:'doughnut',data:{labels:['Heavy Rain','AQI Spike','Extreme Heat','Strike','Flood'],datasets:[{data:[45,22,18,10,5],backgroundColor:['#3B82F6','#8B5CF6','#F59E0B','#EF4444','#10B981'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#9CA3AF',padding:12,font:{size:11}}}},cutout:'65%'}});
+}
+function initFraudChart() {
+  window.fraudInit=true;
+  new Chart(document.getElementById('fraudChart'),{type:'bar',data:{labels:['GPS Mismatch','Duplicate Device','Zone Mismatch','Inactive App','Claim Freq'],datasets:[{label:'Flags Raised',data:[14,8,11,6,9],backgroundColor:['rgba(239,68,68,0.6)','rgba(245,158,11,0.6)','rgba(239,68,68,0.5)','rgba(245,158,11,0.5)','rgba(239,68,68,0.4)'],borderRadius:8}]},options:{...cd,indexAxis:'y',plugins:{legend:{display:false}}}});
+}
+function initLossChart() {
+  window.lossInit=true;
+  new Chart(document.getElementById('lossChart'),{type:'line',data:{labels:['Feb 1','Feb 8','Feb 15','Feb 22','Mar 1','Mar 8','Mar 15','Mar 19'],datasets:[{label:'Loss Ratio %',data:[53,45,57,47,43,60,68,61],borderColor:'#FF5722',backgroundColor:'rgba(255,87,34,0.08)',fill:true,tension:0.4,pointBackgroundColor:'#FF5722',pointRadius:4},{label:'Target (70%)',data:[70,70,70,70,70,70,70,70],borderColor:'rgba(239,68,68,0.4)',borderDash:[6,4],pointRadius:0,fill:false}]},options:{...cd}});
+}
+window.addEventListener('load', initCharts);
+</script>
+</body>
+</html>
