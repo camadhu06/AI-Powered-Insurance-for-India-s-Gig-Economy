@@ -1,10 +1,14 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 // Temporary in-memory storage
-let users = [];
+let users = [
+  { id: 0, name: "admin", role: "admin" }
+];
 
 // Home route
 app.get("/", (req, res) => {
