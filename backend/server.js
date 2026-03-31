@@ -15,23 +15,49 @@ app.get("/", (req, res) => {
   res.send("Backend running");
 });
 
-// REGISTER API
+// REGISTER API — Worker Registration
 app.post("/register", (req, res) => {
-  const { name, city, income } = req.body;
+  const { name, phone, email, platform, city, avgWeeklyEarning } = req.body;
 
-  const user = {
+  // Validate required fields
+  if (!name || !phone || !email || !platform || !city || avgWeeklyEarning === undefined) {
+    return res.status(400).json({
+      message: "All fields are required: name, phone, email, platform, city, avgWeeklyEarning"
+    });
+  }
+
+  // Check for duplicate phone
+  const existing = users.find(u => u.phone === phone);
+  if (existing) {
+    return res.status(409).json({
+      message: "A worker with this phone number is already registered."
+    });
+  }
+
+  const worker = {
     id: users.length + 1,
     name,
+    phone,
+    email,
+    platform,
     city,
-    income
+    avgWeeklyEarning: Number(avgWeeklyEarning),
+    role: "worker",
+    registeredAt: new Date().toISOString()
   };
 
-  users.push(user);
+  users.push(worker);
 
   res.json({
-    message: "User registered successfully",
-    user
+    message: "Worker registered successfully",
+    worker
   });
+});
+
+// GET ALL WORKERS (for admin dashboard)
+app.get("/workers", (req, res) => {
+  const workers = users.filter(u => u.role === "worker");
+  res.json(workers);
 });
 
 // LOGIN API
@@ -50,6 +76,57 @@ app.post("/login", (req, res) => {
       message: "User not found"
     });
   }
+});
+
+// WORKER LOGIN API (by phone)
+app.post("/worker-login", (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ message: "Phone number is required" });
+  }
+
+  const worker = users.find(u => u.phone === phone && u.role === "worker");
+
+  if (worker) {
+    res.json({
+      message: "Login successful",
+      worker
+    });
+  } else {
+    res.status(404).json({
+      message: "No account found with this number. Please register first."
+    });
+  }
+});
+
+// SELECT PLAN API
+app.post("/select-plan", (req, res) => {
+  const { workerId, planName, weeklyPremium } = req.body;
+
+  if (!workerId || !planName || weeklyPremium === undefined) {
+    return res.status(400).json({
+      message: "workerId, planName, and weeklyPremium are required"
+    });
+  }
+
+  const worker = users.find(u => u.id === workerId);
+  if (!worker) {
+    return res.status(404).json({
+      message: "Worker not found"
+    });
+  }
+
+  worker.plan = {
+    name: planName,
+    weeklyPremium: Number(weeklyPremium),
+    activatedAt: new Date().toISOString()
+  };
+
+  res.json({
+    message: "Plan activated successfully",
+    worker
+  });
 });
 
 // GET ALL USERS (for testing)
