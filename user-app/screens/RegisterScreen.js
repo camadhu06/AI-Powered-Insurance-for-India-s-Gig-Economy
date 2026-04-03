@@ -64,14 +64,14 @@ export default function RegisterScreen({ navigation }) {
           email: form.email.trim(),
           platform: form.platform,
           city: form.city.trim(),
-          avgWeeklyEarning: Number(form.avgWeeklyEarning),
+          avgDailyEarnings: Number(form.avgWeeklyEarning),
         }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        navigation.replace('Success', { worker: data.worker });
+        navigation.replace('Success', { worker: data.user });
       } else {
         setError(data.message || 'Registration failed.');
       }

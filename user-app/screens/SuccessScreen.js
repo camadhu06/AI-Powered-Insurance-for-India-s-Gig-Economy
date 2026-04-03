@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 
 export default function SuccessScreen({ route, navigation }) {
-  const worker = route.params?.worker;
+  const { worker } = route.params || {};
   const [hoveredStep, setHoveredStep] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -83,7 +83,7 @@ export default function SuccessScreen({ route, navigation }) {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Platform</Text>
-            <Text style={styles.detailValue}>{worker?.platform || '—'}</Text>
+            <Text style={styles.detailValue}>{worker?.platforms?.[0] || '—'}</Text>
           </View>
 
           <View style={styles.divider} />
@@ -96,53 +96,23 @@ export default function SuccessScreen({ route, navigation }) {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Avg Weekly Earning</Text>
+            <Text style={styles.detailLabel}>Avg Daily Earning</Text>
             <Text style={styles.detailValue}>
-              ₹{worker?.avgWeeklyEarning?.toLocaleString('en-IN') || '—'}
+              ₹{worker.avgDailyEarnings}
             </Text>
           </View>
         </View>
 
-        {/* ── Next Steps ── */}
-        <View style={styles.nextSteps}>
-          <Text style={styles.nextTitle}>WHAT'S NEXT</Text>
-
-          <Pressable
-            style={[styles.stepRow, hoveredStep === 0 && styles.stepRowHovered]}
-            onHoverIn={() => setHoveredStep(0)}
-            onHoverOut={() => setHoveredStep(null)}
-            onPress={() => navigation.navigate('PlanSelect', { worker })}
-          >
-            <View style={[styles.stepDot, hoveredStep === 0 && styles.stepDotHovered]} />
-            <Text style={[styles.stepText, hoveredStep === 0 && styles.stepTextHovered]}>
-              Choose an insurance plan
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.stepRow, hoveredStep === 1 && styles.stepRowHovered]}
-            onHoverIn={() => setHoveredStep(1)}
-            onHoverOut={() => setHoveredStep(null)}
-            onPress={() => console.log('UPI setup')}
-          >
-            <View style={[styles.stepDot, hoveredStep === 1 && styles.stepDotHovered]} />
-            <Text style={[styles.stepText, hoveredStep === 1 && styles.stepTextHovered]}>
-              Set up UPI auto-debit
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.stepRow, hoveredStep === 2 && styles.stepRowHovered]}
-            onHoverIn={() => setHoveredStep(2)}
-            onHoverOut={() => setHoveredStep(null)}
-            onPress={() => console.log('Dashboard')}
-          >
-            <View style={[styles.stepDot, hoveredStep === 2 && styles.stepDotHovered]} />
-            <Text style={[styles.stepText, hoveredStep === 2 && styles.stepTextHovered]}>
-              Start delivering with protection
-            </Text>
-          </Pressable>
-        </View>
+        {/* ── Next Action ── */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.planBtn,
+            pressed && styles.planBtnPressed
+          ]}
+          onPress={() => navigation.navigate('PlanSelect', { worker })}
+        >
+          <Text style={styles.planBtnText}>Get My Weekly Plan</Text>
+        </Pressable>
       </Animated.View>
 
       {/* ── Footer ── */}
@@ -237,53 +207,25 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
 
-  // Next steps
-  nextSteps: {
+  // Plan Button
+  planBtn: {
     width: '100%',
-    gap: 12,
-  },
-  nextTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9ca3af',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
-    cursor: 'pointer',
-    transitionProperty: 'transform',
-    transitionDuration: '0.2s',
-  },
-  stepRowHovered: {
-    transform: [{ translateX: -4 }],
-    borderBottomColor: '#FF5722',
-  },
-  stepDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    maxWidth: 360,
     backgroundColor: '#f37500',
-    transitionProperty: 'transform',
-    transitionDuration: '0.2s',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepDotHovered: {
-    transform: [{ scale: 0.7 }],
+  planBtnPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
-  stepText: {
+  planBtnText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#9ca3af',
-    transitionProperty: 'color',
-    transitionDuration: '0.2s',
-  },
-  stepTextHovered: {
-    color: '#ffffff',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
 
   // Footer

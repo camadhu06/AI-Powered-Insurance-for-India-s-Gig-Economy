@@ -1,44 +1,37 @@
 import React, { useState } from 'react';
-import './PlanSelect.css';
+import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 
 const PLANS = [
   {
     id: 'basic',
     name: 'Basic Shield',
     price: 49,
-    features: [
-      'Rain + Extreme Heat coverage',
-      'Up to 3 days/week',
-      'Cap: Rs.1,500/week',
-    ],
+    cap: 1500,
+    features: ['Rain + Extreme Heat triggers'],
     pill: null,
   },
   {
     id: 'standard',
     name: 'Standard Shield',
     price: 79,
-    features: [
-      'Rain + Heat + AQI + Flood + Strike',
-      'Up to 5 days/week',
-      'Cap: Rs.2,500/week',
-    ],
-    pill: 'BEST VALUE',
+    cap: 2500,
+    features: ['Rain + Heat + AQI', 'Flood + Strike'],
+    pill: 'BEST',
   },
   {
     id: 'full',
     name: 'Full Shield',
     price: 99,
-    features: [
-      'All triggers covered',
-      'Up to 7 days/week',
-      'Cap: Rs.3,500/week',
-      'Instant payout',
-    ],
+    cap: 7500,
+    features: ['Rain + Heat + AQI', 'Flood + Strike + War', 'Instant payout'],
     pill: null,
   },
 ];
 
-export default function PlanSelect({ workerId, onPlanSelected }) {
+export default function PlanSelect({ route, navigation }) {
+  const { worker } = route.params || {};
+  const workerId = worker?._id;
+
   const [selected, setSelected] = useState('standard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -46,7 +39,7 @@ export default function PlanSelect({ workerId, onPlanSelected }) {
   const selectedPlan = PLANS.find((p) => p.id === selected);
 
   async function handleActivate() {
-    if (!selectedPlan) return;
+    if (!selectedPlan || !workerId) return;
 
     setError(null);
     setLoading(true);
@@ -56,7 +49,7 @@ export default function PlanSelect({ workerId, onPlanSelected }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workerId,
+          userId: workerId,
           planName: selectedPlan.name,
           weeklyPremium: selectedPlan.price,
         }),
@@ -65,7 +58,8 @@ export default function PlanSelect({ workerId, onPlanSelected }) {
       const data = await res.json();
 
       if (res.ok) {
-        onPlanSelected(data);
+        // Just go back to the Success screen which should reflect the updated plan in the DB
+        navigation.navigate('Success', { worker: data.user });
       } else {
         setError(data.message || 'Failed to activate plan.');
       }
@@ -77,80 +71,237 @@ export default function PlanSelect({ workerId, onPlanSelected }) {
   }
 
   return (
-    <div className="plan-page">
-      {/* Wordmark */}
-      <div className="plan-wordmark">GigWare</div>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.wordmark}>GigWare</Text>
+          <Text style={styles.heading}>Pick your shield.</Text>
+          <Text style={styles.subtext}>Weekly coverage. Cancel anytime.</Text>
+        </View>
 
-      {/* Header */}
-      <div className="plan-header">
-        <h1 className="plan-heading">Pick your shield.</h1>
-        <p className="plan-subtext">Weekly coverage. Cancel anytime.</p>
-      </div>
+        {/* Plans */}
+        <View style={styles.plansContainer}>
+          {PLANS.map((plan) => {
+            const isSelected = selected === plan.id;
+            return (
+              <Pressable
+                key={plan.id}
+                style={[styles.planCard, isSelected && styles.planCardSelected]}
+                onPress={() => setSelected(plan.id)}
+              >
+                <View style={styles.planHeaderRow}>
+                  <Text style={[styles.planName, isSelected && styles.planNameSelected]}>
+                    {plan.name}
+                  </Text>
+                  {plan.pill && (
+                    <View style={styles.pill}>
+                      <Text style={styles.pillText}>{plan.pill}</Text>
+                    </View>
+                  )}
+                </View>
 
-      <div className="plan-divider"></div>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceRs}>Rs.{plan.price}</Text>
+                  <Text style={styles.pricePeriod}>/week</Text>
+                </View>
 
-      {/* Zone Risk Bar */}
-      <div className="zone-risk">
-        <div className="zone-risk-label">Zone Risk Score — Bengaluru South</div>
-        <div className="zone-risk-track">
-          <div className="zone-risk-fill"></div>
-        </div>
-        <div className="zone-risk-row">
-          <span className="zone-risk-score">38 / 100 — Low Risk</span>
-          <span className="zone-risk-note">Your premium is Rs.12 lower than average zone</span>
-        </div>
-      </div>
+                <View style={styles.divider} />
 
-      {/* Plan Cards */}
-      <div className="plan-cards">
-        {PLANS.map((plan) => (
-          <div
-            key={plan.id}
-            className={`plan-card ${selected === plan.id ? 'selected' : ''}`}
-            onClick={() => setSelected(plan.id)}
-          >
-            <div className="plan-card-left">
-              <div className="plan-card-name-row">
-                <h3 className="plan-card-name">{plan.name}</h3>
-                {plan.pill && <span className="plan-pill">{plan.pill}</span>}
-              </div>
-              <ul className="plan-card-features">
-                {plan.features.map((f, i) => (
-                  <li key={i} className="plan-card-feature">{f}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="plan-card-right">
-              <div className="plan-card-price">Rs.{plan.price}</div>
-              <div className="plan-card-period">/week</div>
-            </div>
-          </div>
-        ))}
-      </div>
+                <Text style={styles.capText}>Weekly Cap: Rs.{plan.cap}</Text>
+                
+                <View style={styles.featuresList}>
+                  {plan.features.map((f, i) => (
+                    <Text key={i} style={styles.featureItem}>• {f}</Text>
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      {/* Error */}
-      {error && (
-        <div className="plan-error">
-          <span className="plan-error-text">{error}</span>
-        </div>
-      )}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+      </ScrollView>
 
-      {/* Bottom Sticky Bar */}
-      <div className="plan-bottom-bar">
-        <div className="plan-bottom-inner">
-          <div className="plan-bottom-info">
-            <span className="plan-bottom-name">{selectedPlan?.name}</span>
-            <span className="plan-bottom-price">Rs.{selectedPlan?.price}/week</span>
-          </div>
-          <button
-            className="plan-activate-btn"
-            onClick={handleActivate}
-            disabled={loading}
-          >
-            {loading ? 'Activating...' : 'Activate Shield →'}
-          </button>
-        </div>
-      </div>
-    </div>
+      {/* Bottom Sticky Action */}
+      <View style={styles.bottomBar}>
+        <View style={styles.bottomBarInfo}>
+          <Text style={styles.bottomBarName}>{selectedPlan?.name}</Text>
+          <Text style={styles.bottomBarPrice}>Rs.{selectedPlan?.price}/week</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.activateBtn,
+            loading && styles.activateBtnDisabled,
+            pressed && styles.activateBtnPressed
+          ]}
+          onPress={handleActivate}
+          disabled={loading}
+        >
+          <Text style={styles.activateBtnText}>
+            {loading ? 'Processing...' : `Activate ${selectedPlan?.name}`}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#08090b',
+  },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 140, // Space for bottom bar
+  },
+  header: {
+    marginTop: 40,
+    marginBottom: 32,
+  },
+  wordmark: {
+    color: '#f37500',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 16,
+    textTransform: 'uppercase',
+  },
+  heading: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
+  subtext: {
+    color: '#9ca3af',
+    fontSize: 16,
+  },
+  plansContainer: {
+    gap: 16,
+  },
+  planCard: {
+    backgroundColor: '#111318',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#1f2937',
+  },
+  planCardSelected: {
+    borderColor: '#f37500',
+    backgroundColor: '#1a1410', // slight orange tint
+  },
+  planHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  planName: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  planNameSelected: {
+    color: '#f37500',
+  },
+  pill: {
+    backgroundColor: '#f37500',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  pillText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 16,
+  },
+  priceRs: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  pricePeriod: {
+    color: '#6b7280',
+    fontSize: 16,
+    marginLeft: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#1f2937',
+    marginBottom: 16,
+  },
+  capText: {
+    color: '#e5e7eb',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  featuresList: {
+    gap: 6,
+  },
+  featureItem: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  errorText: {
+    color: '#ef4444',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  // Bottom Bar
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#111318',
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    padding: 24,
+    paddingBottom: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bottomBarInfo: {
+    flex: 1,
+  },
+  bottomBarName: {
+    color: '#9ca3af',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  bottomBarPrice: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  activateBtn: {
+    backgroundColor: '#f37500',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activateBtnPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  activateBtnDisabled: {
+    opacity: 0.5,
+  },
+  activateBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});

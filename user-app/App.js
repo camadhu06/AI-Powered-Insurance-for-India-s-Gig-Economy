@@ -6,6 +6,7 @@ import { StatusBar } from 'react-native';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import SuccessScreen from './screens/SuccessScreen';
+import PlanSelect from './screens/PlanSelect';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,6 +22,7 @@ export default function App() {
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Success" component={SuccessScreen} />
+          <Stack.Screen name="PlanSelect" component={PlanSelect} />
         </Stack.Navigator>
       </NavigationContainer>
     </>
