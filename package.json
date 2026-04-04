@@ -1,0 +1,14 @@
+{
+  "name": "gigshield-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "concurrently -n backend,admin,user -c blue,green,magenta \"npm start --prefix backend\" \"npm start --prefix admin-web\" \"npm start --prefix user-app\"",
+    "start:backend": "npm start --prefix backend",
+    "start:admin": "npm start --prefix admin-web",
+    "start:user": "npm start --prefix user-app"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
