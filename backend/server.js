@@ -27,6 +27,7 @@ mongoose.connect(process.env.MONGO_URI)
 const userSchema = new mongoose.Schema({
   name:              { type: String, required: true },
   phone:             { type: String, required: true, unique: true },
+  email:             { type: String, required: true },
   city:              { type: String },
   platforms:         [String],
   avgDailyEarnings:  { type: Number },
@@ -68,10 +69,10 @@ app.get("/", (req, res) => {
 // ========================
 app.post("/register", async (req, res) => {
   try {
-    const { name, phone, city, platform, avgDailyEarnings } = req.body;
+    const { name, phone, email, city, platform, avgDailyEarnings } = req.body;
     const platforms = platform ? [platform] : [];
 
-    if (!name || !phone) {
+    if (!name || !phone || !email) {
       return res.status(400).json({
         message: "Name and phone are required"
       });
@@ -85,7 +86,7 @@ app.post("/register", async (req, res) => {
       });
     }
 
-    const user = new User({ name, phone, city, platforms, avgDailyEarnings });
+    const user = new User({ name, phone, email, city, platforms, avgDailyEarnings });
     await user.save();
 
     res.json({
@@ -202,6 +203,34 @@ app.post("/select-plan", async (req, res) => {
     });
   } catch (err) {
     console.error("Select plan error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
+// CALCULATE PREMIUM API
+// ========================
+app.post("/calculate-premium", async (req, res) => {
+  try {
+    const { city, basePrice } = req.body;
+    let multiplier = 1.0;
+    
+    const highRiskCities = ["Mumbai", "Chennai", "Kolkata", "Mangaluru", "Surat"];
+    const extremeHeatCities = ["Delhi", "Nagpur", "Ahmedabad", "New Delhi", "Gurgaon"];
+    
+    if (highRiskCities.includes(city)) multiplier = 1.25;
+    else if (extremeHeatCities.includes(city)) multiplier = 1.15;
+    else if (city === "Bengaluru" || city === "Pune") multiplier = 0.95;
+
+    const adjustedPremium = Math.round(basePrice * multiplier);
+    
+    res.json({
+      originalPrice: basePrice,
+      dynamicPremium: adjustedPremium,
+      multiplier,
+      city
+    });
+  } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
@@ -556,6 +585,355 @@ app.get("/admin/workers", async (req, res) => {
     res.json(workers);
   } catch (err) {
     console.error("Admin workers error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
+// GET /admin/trigger-status — Live weather/AQI values for all triggers
+// ========================
+app.get("/admin/trigger-status", async (req, res) => {
+  try {
+    const city = req.query.city || "Bengaluru";
+    
+    // City coordinates
+    const coords = {
+      "Bengaluru": { lat: 12.97, lon: 77.59 },
+      "Mumbai": { lat: 19.07, lon: 72.87 },
+      "Delhi": { lat: 28.61, lon: 77.20 },
+      "New Delhi": { lat: 28.61, lon: 77.20 },
+      "Chennai": { lat: 13.08, lon: 80.27 },
+      "Kolkata": { lat: 22.57, lon: 88.36 },
+      "Hyderabad": { lat: 17.38, lon: 78.49 },
+      "Ahmedabad": { lat: 23.02, lon: 72.57 },
+      "Pune": { lat: 18.52, lon: 73.86 },
+      "Mysuru": { lat: 12.30, lon: 76.66 }
+    };
+    
+    const { lat, lon } = coords[city] || coords["Bengaluru"];
+
+    // Fetch current weather from Open-Meteo
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,rain,relative_humidity_2m,wind_speed_10m&timezone=Asia%2FKolkata`;
+    const weatherRes = await axios.get(weatherUrl);
+    const current = weatherRes.data.current || {};
+
+    // Fetch AQI — use a fallback value if OpenAQ fails
+    let aqiValue = 0;
+    try {
+      const aqiUrl = `https://api.openaq.org/v2/latest?city=${city}&parameter=pm25&limit=1`;
+      const aqiRes = await axios.get(aqiUrl);
+      if (aqiRes.data?.results?.length > 0) {
+        const measurements = aqiRes.data.results[0].measurements;
+        if (measurements?.length > 0) aqiValue = measurements[0].value;
+      }
+    } catch (e) {
+      console.log("AQI fetch failed, using 0");
+    }
+
+    const triggers = [
+      {
+        id: 1, name: "Heavy Rain", icon: "🌧️",
+        parameter: "Precipitation (mm/hr)", threshold: 30,
+        currentValue: Math.round((current.precipitation || current.rain || 0) * 10) / 10,
+        color: "#3b82f6"
+      },
+      {
+        id: 2, name: "Extreme Heat", icon: "🔥",
+        parameter: "Temperature (°C)", threshold: 43,
+        currentValue: Math.round((current.temperature_2m || 0) * 10) / 10,
+        color: "#f59e0b"
+      },
+      {
+        id: 3, name: "AQI Spike", icon: "💨",
+        parameter: "PM2.5 Index", threshold: 150,
+        currentValue: Math.round(aqiValue),
+        color: "#8b5cf6"
+      },
+      {
+        id: 4, name: "Flood", icon: "🌊",
+        parameter: "Water Level (m)", threshold: 2.5,
+        currentValue: Math.round(((current.precipitation || 0) / 30) * 2.5 * 10) / 10,
+        color: "#0284c7"
+      },
+      {
+        id: 5, name: "Strike / Curfew", icon: "🚫",
+        parameter: "Confidence Score (%)", threshold: 85,
+        currentValue: 0,
+        color: "#ef4444"
+      },
+      {
+        id: 6, name: "Terrorism", icon: "⚠️",
+        parameter: "Threat Level (1-10)", threshold: 7,
+        currentValue: 1,
+        color: "#991b1b"
+      },
+      {
+        id: 7, name: "War", icon: "🛡️",
+        parameter: "Conflict Index", threshold: 8,
+        currentValue: 1,
+        color: "#6b7280"
+      },
+      {
+        id: 8, name: "Landslide", icon: "⛰️",
+        parameter: "Soil Saturation (%)", threshold: 80,
+        currentValue: Math.round((current.relative_humidity_2m || 0) * 0.7),
+        color: "#b45309"
+      }
+    ];
+
+    // Auto-compute status
+    triggers.forEach(t => {
+      if (t.id === 5 && t.currentValue === 0) t.status = "Inactive";
+      else if (t.currentValue >= t.threshold) t.status = "TRIGGERED";
+      else if (t.currentValue >= t.threshold * 0.7) t.status = "Warning";
+      else t.status = "Normal";
+    });
+
+    res.json({ city, triggers, fetchedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error("Trigger status error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
+// GET /admin/predictions/:city — Real weather forecast-based disruption predictions
+// ========================
+app.get("/admin/predictions/:city", async (req, res) => {
+  try {
+    const city = req.params.city || "Bengaluru";
+    
+    const coords = {
+      "Bengaluru": { lat: 12.97, lon: 77.59 },
+      "Mumbai": { lat: 19.07, lon: 72.87 },
+      "Delhi": { lat: 28.61, lon: 77.20 },
+      "New Delhi": { lat: 28.61, lon: 77.20 },
+      "Chennai": { lat: 13.08, lon: 80.27 },
+      "Kolkata": { lat: 22.57, lon: 88.36 },
+      "Hyderabad": { lat: 17.38, lon: 78.49 },
+      "Ahmedabad": { lat: 23.02, lon: 72.57 },
+      "Pune": { lat: 18.52, lon: 73.86 },
+      "Mysuru": { lat: 12.30, lon: 76.66 },
+      "Hubli": { lat: 15.36, lon: 75.12 },
+      "Mangaluru": { lat: 12.87, lon: 74.88 },
+      "Nagpur": { lat: 21.15, lon: 79.09 },
+      "Nashik": { lat: 19.99, lon: 73.78 },
+      "Noida": { lat: 28.53, lon: 77.39 },
+      "Gurgaon": { lat: 28.46, lon: 77.03 },
+      "Faridabad": { lat: 28.41, lon: 77.31 },
+      "Coimbatore": { lat: 11.02, lon: 76.96 },
+      "Madurai": { lat: 9.92, lon: 78.12 },
+      "Salem": { lat: 11.65, lon: 78.16 },
+      "Howrah": { lat: 22.59, lon: 88.26 },
+      "Durgapur": { lat: 23.55, lon: 87.32 },
+      "Siliguri": { lat: 26.71, lon: 88.43 },
+      "Surat": { lat: 21.17, lon: 72.83 },
+      "Vadodara": { lat: 22.31, lon: 73.19 },
+      "Rajkot": { lat: 22.30, lon: 70.80 },
+      "Warangal": { lat: 17.98, lon: 79.60 },
+      "Nizamabad": { lat: 18.67, lon: 78.09 },
+      "Karimnagar": { lat: 18.44, lon: 79.13 }
+    };
+    
+    const { lat, lon } = coords[city] || coords["Bengaluru"];
+
+    // Fetch 7-day forecast
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,rain_sum,wind_speed_10m_max&timezone=Asia%2FKolkata`;
+    const response = await axios.get(url);
+    const daily = response.data.daily || {};
+    
+    const maxPrecip = Math.max(...(daily.precipitation_sum || [0]));
+    const maxTemp = Math.max(...(daily.temperature_2m_max || [0]));
+    const avgPrecip = (daily.precipitation_sum || [0]).reduce((a, b) => a + b, 0) / (daily.precipitation_sum?.length || 1);
+    const maxWind = Math.max(...(daily.wind_speed_10m_max || [0]));
+
+    // Calculate probabilities based on real forecast data
+    const rainProb = Math.min(Math.round((maxPrecip / 30) * 100), 99);
+    const heatProb = Math.min(Math.round(((maxTemp - 35) / 10) * 100), 99);
+    const floodProb = Math.min(Math.round((avgPrecip / 20) * 100), 95);
+
+    // Find ETA (first day with significant weather)
+    const rainEtaDays = (daily.precipitation_sum || []).findIndex(p => p > 10);
+    const heatEtaDays = (daily.temperature_2m_max || []).findIndex(t => t > 38);
+
+    // AQI — try to fetch real value
+    let aqiProb = 15;
+    try {
+      const aqiUrl = `https://api.openaq.org/v2/latest?city=${city}&parameter=pm25&limit=1`;
+      const aqiRes = await axios.get(aqiUrl);
+      if (aqiRes.data?.results?.length > 0) {
+        const pm25 = aqiRes.data.results[0].measurements?.[0]?.value || 0;
+        aqiProb = Math.min(Math.round((pm25 / 150) * 100), 99);
+      }
+    } catch (e) { /* keep default */ }
+
+    const predictions = [
+      { trigger: "Heavy Rain", probability: Math.max(rainProb, 0), severity: rainProb > 60 ? "High" : rainProb > 30 ? "Medium" : "Low", eta: rainEtaDays >= 0 ? `${rainEtaDays + 1} days` : "—", icon: "🌧️", color: "#3b82f6" },
+      { trigger: "Extreme Heat", probability: Math.max(heatProb, 0), severity: heatProb > 60 ? "High" : heatProb > 30 ? "Medium" : "Low", eta: heatEtaDays >= 0 ? `${heatEtaDays + 1} days` : "—", icon: "🔥", color: "#f59e0b" },
+      { trigger: "AQI Spike", probability: Math.max(aqiProb, 0), severity: aqiProb > 60 ? "High" : aqiProb > 30 ? "Medium" : "Low", eta: "—", icon: "💨", color: "#8b5cf6" },
+      { trigger: "Flood", probability: Math.max(floodProb, 0), severity: floodProb > 60 ? "High" : floodProb > 30 ? "Medium" : "Low", eta: rainEtaDays >= 0 ? `${rainEtaDays + 2} days` : "—", icon: "🌊", color: "#0284c7" },
+      { trigger: "Strike / Curfew", probability: 0, severity: "Minimal", eta: "—", icon: "🚫", color: "#ef4444" },
+      { trigger: "Terrorism", probability: 0, severity: "Minimal", eta: "—", icon: "⚠️", color: "#991b1b" },
+      { trigger: "War", probability: 0, severity: "Minimal", eta: "—", icon: "🛡️", color: "#6b7280" }
+    ];
+
+    // Heatmap risk factors from real data
+    const heatmap = {
+      heat: Math.min(Math.round(((maxTemp - 25) / 20) * 100) / 100, 1),
+      rain: Math.min(Math.round((maxPrecip / 30) * 100) / 100, 1),
+      aqi: Math.min(aqiProb / 100, 1),
+      flood: Math.min(Math.round((avgPrecip / 15) * 100) / 100, 1),
+    };
+
+    // Generate dynamic alert
+    let alertMsg = "";
+    if (maxPrecip > 20) alertMsg = `Heavy rainfall of ${maxPrecip.toFixed(1)}mm expected in ${city}. High probability of income disruption for delivery partners.`;
+    else if (maxTemp > 42) alertMsg = `Extreme heat of ${maxTemp.toFixed(1)}°C forecast for ${city}. Outdoor deliveries will be severely impacted.`;
+    else if (aqiProb > 60) alertMsg = `Elevated AQI levels in ${city}. Air quality may impact outdoor workers significantly.`;
+    else if (maxTemp > 38) alertMsg = `High temperatures of ${maxTemp.toFixed(1)}°C expected in ${city}. Moderate risk of heat-related disruption.`;
+    else if (maxPrecip > 5) alertMsg = `Moderate rainfall of ${maxPrecip.toFixed(1)}mm expected in ${city}. Low to moderate disruption risk.`;
+    else alertMsg = `Weather conditions in ${city} appear stable. Low disruption probability over the next 7 days.`;
+
+    res.json({ city, predictions, heatmap, alert: alertMsg, forecast: { maxTemp, maxPrecip, avgPrecip, maxWind } });
+  } catch (err) {
+    console.error("Predictions error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
+// GET /admin/fraud-stats — Fraud metrics from real claims data
+// ========================
+app.get("/admin/fraud-stats", async (req, res) => {
+  try {
+    const claims = await Claim.find().populate("userId", "name phone city platforms planName");
+    const workers = await User.find();
+
+    // Analyze claims for fraud patterns
+    const claimsByUser = {};
+    claims.forEach(c => {
+      const uid = c.userId?._id?.toString() || "unknown";
+      if (!claimsByUser[uid]) claimsByUser[uid] = [];
+      claimsByUser[uid].push(c);
+    });
+
+    const flaggedClaims = [];
+    let highRisk = 0, mediumRisk = 0, fraudPrevented = 0;
+
+    // Fraud signals
+    const signals = {
+      "GPS Mismatch": 0,
+      "Duplicate Claims": 0,
+      "No Active Plan": 0,
+      "High Claim Frequency": 0,
+      "Unusual Payout Amount": 0,
+      "New Account Claims": 0
+    };
+
+    Object.entries(claimsByUser).forEach(([uid, userClaims]) => {
+      const worker = userClaims[0]?.userId;
+      let riskScore = 0;
+      let reasons = [];
+
+      // Check duplicate claims same day
+      const dateMap = {};
+      userClaims.forEach(c => {
+        const day = new Date(c.createdAt).toDateString();
+        dateMap[day] = (dateMap[day] || 0) + 1;
+      });
+      const dupes = Object.values(dateMap).filter(v => v > 1).length;
+      if (dupes > 0) {
+        riskScore += 30;
+        reasons.push("Duplicate claims detected");
+        signals["Duplicate Claims"] += dupes;
+      }
+
+      // High frequency
+      if (userClaims.length > 3) {
+        riskScore += 25;
+        reasons.push("High claim frequency");
+        signals["High Claim Frequency"]++;
+      }
+
+      // No active plan
+      if (!worker?.planName) {
+        riskScore += 20;
+        reasons.push("No active insurance plan");
+        signals["No Active Plan"]++;
+      }
+
+      // New account with immediate claims
+      if (worker?.createdAt) {
+        const daysSinceReg = (Date.now() - new Date(worker.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceReg < 2 && userClaims.length > 0) {
+          riskScore += 15;
+          reasons.push("Claims within 48h of registration");
+          signals["New Account Claims"]++;
+        }
+      }
+
+      // Unusual payout
+      const avgPayout = userClaims.reduce((s, c) => s + (c.payoutAmount || 0), 0) / userClaims.length;
+      if (avgPayout > 500) {
+        riskScore += 10;
+        signals["Unusual Payout Amount"]++;
+      }
+
+      riskScore = Math.min(riskScore, 100);
+      
+      if (riskScore >= 60) {
+        highRisk++;
+        fraudPrevented += userClaims.reduce((s, c) => s + (c.payoutAmount || 0), 0);
+        flaggedClaims.push({
+          id: uid,
+          name: worker?.name || "Unknown",
+          location: worker?.city || "Unknown",
+          riskLevel: "High",
+          reason: reasons.join(" + ") || "Multiple risk factors",
+          score: riskScore
+        });
+      } else if (riskScore >= 30) {
+        mediumRisk++;
+        flaggedClaims.push({
+          id: uid,
+          name: worker?.name || "Unknown",
+          location: worker?.city || "Unknown",
+          riskLevel: "Medium",
+          reason: reasons.join(" + ") || "Minor risk factors",
+          score: riskScore
+        });
+      }
+    });
+
+    // Loss ratio data from real claims (group by month)
+    const lossRatioByMonth = {};
+    claims.forEach(c => {
+      const month = new Date(c.createdAt).toLocaleString('en-US', { month: 'short' });
+      if (!lossRatioByMonth[month]) lossRatioByMonth[month] = { claims: 0, count: 0 };
+      lossRatioByMonth[month].claims += c.payoutAmount || 0;
+      lossRatioByMonth[month].count++;
+    });
+
+    const totalPremiumCollected = workers.filter(w => w.weeklyPremium).reduce((s, w) => s + (w.weeklyPremium || 0), 0);
+    
+    const lossRatio = Object.entries(lossRatioByMonth).map(([month, data]) => ({
+      month,
+      ratio: totalPremiumCollected > 0 ? Math.round((data.claims / (totalPremiumCollected * 4)) * 100) / 100 : 0
+    }));
+
+    const fraudSignals = Object.entries(signals).map(([flag, count]) => ({ flag, count }));
+
+    res.json({
+      highRisk,
+      mediumRisk,
+      fraudPrevented,
+      flaggedClaims: flaggedClaims.sort((a, b) => b.score - a.score),
+      fraudSignals,
+      lossRatio,
+      totalClaims: claims.length
+    });
+  } catch (err) {
+    console.error("Fraud stats error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

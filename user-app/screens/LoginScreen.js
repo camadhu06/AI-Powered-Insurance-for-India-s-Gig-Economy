@@ -34,7 +34,7 @@ export default function LoginScreen({ navigation }) {
       const data = await res.json();
 
       if (res.ok) {
-        navigation.replace('Success', { worker: data.worker });
+        navigation.replace('MainTabs', { worker: data.worker });
       } else {
         setError(data.message || 'Login failed.');
       }

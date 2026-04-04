@@ -25,6 +25,8 @@ export default function RegisterScreen({ navigation }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showOtp, setShowOtp] = useState(false);
+  const [otp, setOtp] = useState('');
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -50,7 +52,18 @@ export default function RegisterScreen({ navigation }) {
       setError(validationError);
       return;
     }
+    
+    // Switch to OTP verification UI step instead of calling backend immediately
+    setShowOtp(true);
+  }
 
+  async function verifyOtpAndSubmit() {
+    if (otp !== '1234') { // Mock OTP for hackathon demo
+      setError('Invalid OTP code. Please use 1234 for demo.');
+      return;
+    }
+
+    setShowOtp(false);
     setError(null);
     setLoading(true);
 
@@ -214,18 +227,42 @@ export default function RegisterScreen({ navigation }) {
         )}
 
         {/* ── Register Button ── */}
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.buttonText}>Register →</Text>
-          )}
-        </TouchableOpacity>
+        {!showOtp ? (
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Verify Email →</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.otpSection}>
+            <Text style={styles.label}>ENTER VERIFICATION CODE</Text>
+            <Text style={styles.otpHelper}>A code was sent to {form.email}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="4-digit OTP (1234)"
+              placeholderTextColor="#4b5563"
+              keyboardType="number-pad"
+              maxLength={4}
+              value={otp}
+              onChangeText={setOtp}
+            />
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={verifyOtpAndSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Confirm & Start Trial</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Footer ── */}
         <Text style={styles.footer}>
@@ -402,4 +439,18 @@ const styles = StyleSheet.create({
     color: '#f37500',
     fontWeight: '600',
   },
+  otpSection: {
+    marginTop: 20,
+    backgroundColor: '#111318',
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f37500',
+  },
+  otpHelper: {
+    color: '#9ca3af',
+    fontSize: 13,
+    marginBottom: 12,
+    marginTop: 4,
+  }
 });

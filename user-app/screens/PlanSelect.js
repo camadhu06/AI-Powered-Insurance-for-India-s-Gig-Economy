@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 
 const PLANS = [
@@ -35,8 +35,35 @@ export default function PlanSelect({ route, navigation }) {
   const [selected, setSelected] = useState('standard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [dynamicPlans, setDynamicPlans] = useState(PLANS);
+  const [multiplier, setMultiplier] = useState(1);
 
-  const selectedPlan = PLANS.find((p) => p.id === selected);
+  useEffect(() => {
+    async function fetchDynamicPrices() {
+      try {
+        const city = worker?.city || 'Bengaluru';
+        const updatedPlans = await Promise.all(PLANS.map(async (p) => {
+          const res = await fetch('http://localhost:5000/calculate-premium', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ city, basePrice: p.price }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setMultiplier(data.multiplier);
+            return { ...p, price: data.dynamicPremium };
+          }
+          return p;
+        }));
+        setDynamicPlans(updatedPlans);
+      } catch (err) {
+        console.warn('Could not fetch dynamic prices, falling back to base.');
+      }
+    }
+    if (worker) fetchDynamicPrices();
+  }, [worker]);
+
+  const selectedPlan = dynamicPlans.find((p) => p.id === selected);
 
   async function handleActivate() {
     if (!selectedPlan || !workerId) return;
@@ -58,8 +85,7 @@ export default function PlanSelect({ route, navigation }) {
       const data = await res.json();
 
       if (res.ok) {
-        // Just go back to the Success screen which should reflect the updated plan in the DB
-        navigation.navigate('Success', { worker: data.user });
+        navigation.navigate('Payment', { worker: data.user, plan: selectedPlan });
       } else {
         setError(data.message || 'Failed to activate plan.');
       }
@@ -77,12 +103,18 @@ export default function PlanSelect({ route, navigation }) {
         <View style={styles.header}>
           <Text style={styles.wordmark}>GigWare</Text>
           <Text style={styles.heading}>Pick your shield.</Text>
-          <Text style={styles.subtext}>Weekly coverage. Cancel anytime.</Text>
+          <Text style={styles.subtext}>
+            {multiplier > 1.0 
+              ? `Prices adjusted ${Math.round((multiplier - 1)*100)}% for high-risk coverage in ${worker?.city || 'your city'}.` 
+              : multiplier < 1.0
+              ? `${Math.round((1 - multiplier)*100)}% Safe City Discount applied for ${worker?.city}.`
+              : "Weekly coverage. Cancel anytime."}
+          </Text>
         </View>
 
         {/* Plans */}
         <View style={styles.plansContainer}>
-          {PLANS.map((plan) => {
+          {dynamicPlans.map((plan) => {
             const isSelected = selected === plan.id;
             return (
               <Pressable
