@@ -1,9 +1,15 @@
 {
-  "name": "ai-powered-insurance-for-indias-gig-economy",
+  "name": "gigware-ecosystem",
   "version": "1.0.0",
-  "description": "Root package to run all services concurrently",
+  "description": "GigWare Full Architecture Runtime",
   "scripts": {
-    "install-all": "npm install --prefix backend && npm install --prefix admin-web && npm install --prefix user-app",
-    "start": "npx concurrently \"npm start --prefix backend\" \"npm start --prefix admin-web\" \"npm start --prefix user-app\""
+    "dev": "concurrently -n \"ML,API,ADMIN,APP\" -c \"bgBlue.bold,bgGreen.bold,bgMagenta.bold,bgYellow.bold\" \"npm run ml\" \"npm run backend\" \"npm run admin\" \"npm run app\"",
+    "ml": "cd ml && uvicorn main:app --reload --port 8000",
+    "backend": "cd backend && npm start",
+    "admin": "cd admin-web && npm start",
+    "app": "cd user-app && npx expo start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

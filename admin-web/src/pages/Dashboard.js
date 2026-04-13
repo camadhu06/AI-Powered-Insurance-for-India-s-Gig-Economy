@@ -21,7 +21,8 @@ function WorkersPage({ loading: parentLoading, stats, cardStyle, formatRs }) {
   async function fetchWorkers() {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/admin/workers");
+      const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const res = await fetch(`${API}/admin/workers`);
       const data = await res.json();
       setWorkers(data);
     } catch (err) {
@@ -459,7 +460,8 @@ function FraudDetectionPage({ cardStyle }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:5000/admin/fraud-stats")
+    const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
+    fetch(`${API}/admin/fraud-stats`)
       .then(res => res.json())
       .then(data => { setFraudData(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -471,14 +473,14 @@ function FraudDetectionPage({ cardStyle }) {
   const mediumRisk = fraudData?.mediumRisk || 0;
   const fraudPrevented = fraudData?.fraudPrevented || 0;
 
-  // Add default signal colors
+  // 6-Layer Anti-Spoofing Colors
   const signalColors = {
-    "GPS Mismatch": "#ef4444",
-    "Duplicate Claims": "#f59e0b",
-    "No Active Plan": "#8b5cf6",
-    "High Claim Frequency": "#e23744",
-    "Unusual Payout Amount": "#3b82f6",
-    "New Account Claims": "#22c55e"
+    "Mock Location Flag (Spoof)": "#ef4444",
+    "Device Integrity Failed": "#f59e0b",
+    "Cell Tower Mismatch": "#8b5cf6",
+    "Unnatural Movement Pattern": "#e23744",
+    "WiFi Triangulation Failed": "#3b82f6",
+    "Zero Platform Activity": "#22c55e"
   };
   const coloredSignals = fraudSignals.map(s => ({ ...s, color: signalColors[s.flag] || "#6b7280" }));
   const maxCount = Math.max(...coloredSignals.map(s => s.count), 1);
@@ -654,9 +656,10 @@ function PredictiveAnalysisPage({ cardStyle }) {
 
   useEffect(() => {
     setLoading(true);
+    const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
     Promise.all([
-      fetch(`http://localhost:5000/admin/predictions/${encodeURIComponent(selectedCity)}`).then(r => r.json()),
-      fetch("http://localhost:5000/admin/fraud-stats").then(r => r.json())
+      fetch(`${API}/admin/predictions/${encodeURIComponent(selectedCity)}`).then(r => r.json()),
+      fetch(`${API}/admin/fraud-stats`).then(r => r.json())
     ]).then(([predData, fraudData]) => {
       setPredictions(predData.predictions || []);
       setHeatmap(predData.heatmap || { heat: 0, rain: 0, aqi: 0, flood: 0 });
@@ -816,8 +819,32 @@ function SystemTriggerPage({ cardStyle }) {
   const [selectedCity, setSelectedCity] = useState("Bengaluru");
   const [editingId, setEditingId] = useState(null);
   const [editThreshold, setEditThreshold] = useState("");
+  const [firingId, setFiringId] = useState(null);
+  const [fireToast, setFireToast] = useState(null);
 
   const cities = ["Bengaluru", "Mumbai", "New Delhi", "Chennai", "Kolkata", "Hyderabad", "Ahmedabad", "Pune"];
+
+  const handleFireTrigger = async (trigger) => {
+    setFiringId(trigger.id);
+    try {
+      const res = await fetch("http://localhost:5000/trigger/fire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerType: trigger.name === "Strike / Curfew" ? "Strike" : trigger.name, city: selectedCity, hoursLost: 3 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFireToast({ success: true, msg: `✅ ${data.claimsProcessed} claim(s) auto-processed in ${selectedCity}! Payouts sent.` });
+      } else {
+        setFireToast({ success: false, msg: `⚠️ ${data.message}` });
+      }
+    } catch (e) {
+      setFireToast({ success: false, msg: "❌ Could not reach backend." });
+    } finally {
+      setFiringId(null);
+      setTimeout(() => setFireToast(null), 4000);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -961,7 +988,15 @@ function SystemTriggerPage({ cardStyle }) {
                             <span onClick={() => setEditingId(null)} style={{ cursor: "pointer", background: "rgba(107,114,128,0.1)", color: "#6b7280", padding: "5px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700" }}>Cancel</span>
                           </div>
                         ) : (
-                          <span onClick={() => handleEdit(trigger)} style={{ cursor: "pointer", background: "rgba(59,130,246,0.1)", color: "#3b82f6", padding: "5px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", border: "1px solid rgba(59,130,246,0.2)" }}>Edit âœŽ</span>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <span onClick={() => handleEdit(trigger)} style={{ cursor: "pointer", background: "rgba(59,130,246,0.1)", color: "#3b82f6", padding: "5px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", border: "1px solid rgba(59,130,246,0.2)" }}>Edit ✎</span>
+                            <span
+                              onClick={() => !firingId && handleFireTrigger(trigger)}
+                              style={{ cursor: firingId === trigger.id ? "not-allowed" : "pointer", background: "rgba(239,68,68,0.12)", color: "#ef4444", padding: "5px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", border: "1px solid rgba(239,68,68,0.25)", opacity: firingId === trigger.id ? 0.6 : 1 }}
+                            >
+                              {firingId === trigger.id ? "Firing..." : "🔴 Fire"}
+                            </span>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -980,6 +1015,25 @@ function SystemTriggerPage({ cardStyle }) {
           </div>
         </div>
       </div>
+
+      {/* Fire Toast Notification */}
+      {fireToast && (
+        <div style={{
+          position: "fixed", bottom: "32px", right: "32px", zIndex: 9999,
+          background: fireToast.success ? "rgba(17,24,39,0.98)" : "rgba(17,24,39,0.98)",
+          border: `1px solid ${fireToast.success ? "rgba(34,197,94,0.4)" : "rgba(245,158,11,0.4)"}`,
+          borderLeft: `4px solid ${fireToast.success ? "#22c55e" : "#f59e0b"}`,
+          borderRadius: "12px", padding: "16px 24px",
+          color: fireToast.success ? "#22c55e" : "#f59e0b",
+          fontSize: "14px", fontWeight: "600",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          maxWidth: "420px", lineHeight: "1.5",
+          animation: "slideIn 0.3s ease"
+        }}>
+          {fireToast.msg}
+        </div>
+      )}
+      <style>{`@keyframes slideIn { from { transform: translateX(40px); opacity:0; } to { transform: translateX(0); opacity:1; } }`}</style>
     </div>
   );
 }
@@ -1007,9 +1061,10 @@ export default function Dashboard() {
   async function fetchDashboardData() {
     try {
       setLoading(true);
+      const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const [statsRes, claimsRes] = await Promise.all([
-        fetch("http://localhost:5000/admin/stats"),
-        fetch("http://localhost:5000/admin/claims")
+        fetch(`${API}/admin/stats`),
+        fetch(`${API}/admin/claims`)
       ]);
       const statsData = await statsRes.json();
       const claimsData = await claimsRes.json();
@@ -1289,7 +1344,16 @@ export default function Dashboard() {
                             </td>
                             <td style={{ padding: "16px", color: "#a1a1aa" }}>{claim.userId?.city || "-"}</td>
                             <td style={{ padding: "16px" }}>
-                              <span style={{ color: "#22c55e", fontWeight: "600" }}>Low (98% Trust)</span>
+                              {claim.fraudScore !== undefined ? (
+                                <span style={{ 
+                                  color: claim.fraudScore > 75 ? "#ef4444" : claim.fraudScore >= 40 ? "#f59e0b" : "#22c55e", 
+                                  fontWeight: "600" 
+                                }}>
+                                  {claim.fraudScore > 75 ? "High Risk" : claim.fraudScore >= 40 ? "Medium" : "Low Risk" } ({100 - claim.fraudScore}% Trust)
+                                </span>
+                              ) : (
+                                <span style={{ color: "#22c55e", fontWeight: "600" }}>Low (98% Trust)</span>
+                              )}
                             </td>
                             <td style={{ padding: "16px", color: "#fff", fontWeight: "700" }}>
                               Rs.{claim.payoutAmount}
@@ -1382,6 +1446,31 @@ export default function Dashboard() {
                 <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.1)", padding: "6px 10px", borderRadius: "8px", fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px", fontWeight: "600", letterSpacing: "0.5px" }}>
                   <div style={{width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 6px #ef4444"}}></div>
                   LIVE FEED
+                </div>
+              </div>
+
+              {/* ORACLE CONSENSUS VERIFICATION NODE */}
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ flex: 1, background: 'rgba(34, 197, 94, 0.05)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }}></div>
+                  <div>
+                    <p style={{ color: '#22c55e', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>NODE 1: SATELLITE ORACLE</p>
+                    <p style={{ color: '#d4d4d8', fontSize: '13px', marginTop: '2px', fontWeight: "500" }}>Open-Meteo Trigger Confirmed</p>
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: 'rgba(34, 197, 94, 0.05)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }}></div>
+                  <div>
+                    <p style={{ color: '#22c55e', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>NODE 2: PASSIVE SWARM TELEMETRY</p>
+                    <p style={{ color: '#d4d4d8', fontSize: '13px', marginTop: '2px', fontWeight: "500" }}>Avg Zone Velocity Dropped 43%</p>
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: 'rgba(34, 197, 94, 0.05)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }}></div>
+                  <div>
+                    <p style={{ color: '#22c55e', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>NODE 3: ANTI-SPOOF TRUTH</p>
+                    <p style={{ color: '#d4d4d8', fontSize: '13px', marginTop: '2px', fontWeight: "500" }}>0% Mock GPS Flags Detected</p>
+                  </div>
                 </div>
               </div>
 

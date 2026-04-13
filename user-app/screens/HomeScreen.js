@@ -37,12 +37,18 @@ export default function HomeScreen({ route, navigation }) {
               </View>
             </View>
             <Text style={styles.planName}>{worker?.planName || 'Standard Shield'}</Text>
-            <Text style={styles.planDetails}>Covers Rain, Heat, AQI, Flood</Text>
+            <Text style={styles.planDetails}>Active Weekly Coverage</Text>
+            <View style={styles.divider} />
+            
+            <View style={{marginBottom: 16}}>
+               <Text style={styles.label}>Earnings Protected</Text>
+               <Text style={[styles.value, {fontSize: 28, color: '#22c55e'}]}>₹{worker?.cap || '2,500'}.00</Text>
+            </View>
             <View style={styles.divider} />
             <View style={styles.row}>
               <View>
-                <Text style={styles.label}>Weekly Cap</Text>
-                <Text style={styles.value}>Rs.{worker?.cap || '2500'}</Text>
+                <Text style={styles.label}>Covered Disruptions</Text>
+                <Text style={styles.value}>Rain, Heat, AQI, Flood</Text>
               </View>
               <View>
                 <Text style={styles.label}>Auto-renewal</Text>
