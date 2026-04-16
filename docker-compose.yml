@@ -30,3 +30,11 @@ services:
       - "3000:80"
     depends_on:
       - backend
+
+  user-app:
+    build:
+      context: ./user-app
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
