@@ -67,6 +67,7 @@ function MainTabs({ route }) {
       <Tab.Screen 
         name="Support" 
         component={SupportScreen} 
+        initialParams={{ worker }}
         options={{
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>🆘</Text>
         }}

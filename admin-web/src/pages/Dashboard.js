@@ -60,6 +60,26 @@ function WorkersPage({ loading: parentLoading, stats, cardStyle, formatRs }) {
     w.platforms?.some(p => p.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // CSV Export Workers logic
+  const handleExportWorkers = () => {
+    if (!filteredWorkers || filteredWorkers.length === 0) return;
+    const headers = ["Worker Name", "Phone", "City", "Platforms", "Plan Name", "Premium (Rs.)", "Risk Score"];
+    const rows = filteredWorkers.map(w => [
+      w.name || "Unknown", w.phone || "-", w.city || "-", 
+      (w.platforms || []).join(" | "), w.planName || "No Plan",
+      w.weeklyPremium || 0, getRiskScore(w)
+    ]);
+    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `GigWare_Workers_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const miniCardStyle = {
     background: "#111827",
     padding: "20px 24px",
@@ -211,7 +231,7 @@ function WorkersPage({ loading: parentLoading, stats, cardStyle, formatRs }) {
                 }}
               />
             </div>
-            <div style={{
+            <div onClick={handleExportWorkers} style={{
               cursor: "pointer",
               background: 'rgba(59, 130, 246, 0.1)',
               color: '#3b82f6',
@@ -453,19 +473,250 @@ function WorkersPage({ loading: parentLoading, stats, cardStyle, formatRs }) {
 }
 
 // =============================================
+// Live Claims Panel Component (API-connected)
+// =============================================
+function LiveClaimsPage({ cardStyle }) {
+  const [claims, setClaims] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [lastUpdated, setLastUpdated] = React.useState(null);
+  const [search, setSearch] = React.useState("");
+
+  const fetchClaims = React.useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    try {
+      const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const res = await fetch(`${API}/admin/live-claims`);
+      const data = await res.json();
+      setClaims(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Failed to fetch live claims", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Initial load + auto-poll every 10 seconds
+  React.useEffect(() => {
+    fetchClaims();
+    const interval = setInterval(() => fetchClaims(), 10000);
+    return () => clearInterval(interval);
+  }, [fetchClaims]);
+
+  const filtered = claims.filter(c =>
+    c.worker.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.worker.phone.includes(search) ||
+    c.worker.city.toLowerCase().includes(search.toLowerCase()) ||
+    (c.triggerType || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPaid = claims.reduce((s, c) => s + (c.payoutAmount || 0), 0);
+  const avgFraud = claims.length > 0 ? (claims.reduce((s, c) => s + (c.fraudScore || 0), 0) / claims.length).toFixed(1) : 0;
+  const flagged = claims.filter(c => (c.fraudScore || 0) > 40).length;
+
+  const fraudColor = (score) => {
+    if (score > 75) return { color: "#ef4444", bg: "rgba(239,68,68,0.1)" };
+    if (score > 40) return { color: "#f59e0b", bg: "rgba(245,158,11,0.1)" };
+    return { color: "#22c55e", bg: "rgba(34,197,94,0.1)" };
+  };
+
+  const triggerIcon = (t) => {
+    if (!t) return "📋";
+    if (t.includes("Rain")) return "🌧️";
+    if (t.includes("Heat")) return "🔥";
+    if (t.includes("AQI")) return "💨";
+    if (t.includes("Flood")) return "🌊";
+    if (t.includes("Strike")) return "🚫";
+    return "⚡";
+  };
+
+  const miniCard = { background: "#111827", padding: "20px 24px", borderRadius: "14px", border: "1px solid #1f2937", display: "flex", alignItems: "center", gap: "16px" };
+
+  return (
+    <div style={{ padding: "32px" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 style={{ fontSize: "28px", fontWeight: "700", color: "#fff", letterSpacing: "-0.5px" }}>Live Claims</h1>
+          <p style={{ color: "#9ca3af", marginTop: "4px" }}>Real-time payouts with ML fraud scores from MongoDB.</p>
+        </div>
+        <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", padding: "6px 10px", borderRadius: "8px", fontSize: "11px", color: "#22c55e", display: "flex", alignItems: "center", gap: "10px", fontWeight: "600" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 6px #22c55e" }}></div>
+            LIVE — {claims.length} CLAIMS
+          </div>
+          {lastUpdated && (
+            <span style={{ color: "#4b5563", fontSize: "10px", fontWeight: "500" }}>
+              Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+          <button
+            onClick={() => fetchClaims(true)}
+            disabled={refreshing}
+            style={{ background: refreshing ? "rgba(255,255,255,0.05)" : "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", borderRadius: "6px", padding: "4px 10px", fontSize: "10px", fontWeight: "700", cursor: refreshing ? "not-allowed" : "pointer", letterSpacing: "0.5px", fontFamily: "inherit" }}
+          >
+            {refreshing ? "↻ ..." : "↻ REFRESH"}
+          </button>
+        </div>
+      </div>
+
+      {/* Stat Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "32px" }}>
+        <div style={{ ...miniCard, borderTop: "3px solid #22c55e" }}>
+          <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(34,197,94,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "20px" }}>💸</div>
+          <div>
+            <p style={{ color: "#71717a", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", marginBottom: "4px" }}>TOTAL PAID OUT</p>
+            <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#22c55e", lineHeight: "1" }}>Rs.{new Intl.NumberFormat('en-IN').format(totalPaid)}</h3>
+          </div>
+        </div>
+        <div style={{ ...miniCard, borderTop: "3px solid #f59e0b" }}>
+          <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(245,158,11,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "20px" }}>🤖</div>
+          <div>
+            <p style={{ color: "#71717a", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", marginBottom: "4px" }}>AVG FRAUD SCORE (ML)</p>
+            <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#f59e0b", lineHeight: "1" }}>{avgFraud}<span style={{ fontSize: "13px", fontWeight: "500", color: "#6b7280", marginLeft: "4px" }}>/100</span></h3>
+          </div>
+        </div>
+        <div style={{ ...miniCard, borderTop: "3px solid #ef4444" }}>
+          <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "20px" }}>🚩</div>
+          <div>
+            <p style={{ color: "#71717a", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", marginBottom: "4px" }}>FLAGGED (ML SCORE &gt;40)</p>
+            <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#ef4444", lineHeight: "1" }}>{flagged}</h3>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={cardStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <div>
+            <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>All Processed Claims</h3>
+            <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>XGBoost fraud score · ML-estimated payout · Remaining plan cap</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", padding: "8px 14px", borderRadius: "8px" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search name, phone, city, trigger..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: "12px", width: "220px", fontFamily: "inherit" }} />
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "#6b7280" }}>Loading live claims...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "#6b7280" }}>{search ? "No claims match your search." : "No claims processed yet."}</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #1f2937", color: "#9ca3af", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Worker</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Phone</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>City</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Trigger</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>ML Fraud Score</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Paid Out</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Plan Cap</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Remaining Cap</th>
+                  <th style={{ padding: "14px", fontWeight: "600" }}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c, idx) => {
+                  const fc = fraudColor(c.fraudScore);
+                  const capPct = Math.max(0, Math.round((c.worker.remainingCap / c.worker.planCap) * 100));
+                  return (
+                    <tr key={idx} style={{ borderBottom: "1px solid #1f2937", transition: "background 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      {/* Worker */}
+                      <td style={{ padding: "14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(243,117,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f37500", fontSize: "13px", fontWeight: "700", flexShrink: 0 }}>
+                            {(c.worker.name || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ color: "#fff", fontWeight: "600", fontSize: "13px" }}>{c.worker.name}</div>
+                            <div style={{ color: "#6b7280", fontSize: "10px", marginTop: "1px" }}>{c.worker.planName}</div>
+                          </div>
+                        </div>
+                      </td>
+                      {/* Phone */}
+                      <td style={{ padding: "14px", color: "#a1a1aa", fontSize: "13px", fontFamily: "monospace" }}>{c.worker.phone}</td>
+                      {/* City */}
+                      <td style={{ padding: "14px", color: "#a1a1aa", fontSize: "13px" }}>{c.worker.city}</td>
+                      {/* Trigger */}
+                      <td style={{ padding: "14px" }}>
+                        <span style={{ background: "rgba(59,130,246,0.1)", color: "#60a5fa", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                          {triggerIcon(c.triggerType)} {c.triggerType}
+                        </span>
+                      </td>
+                      {/* ML Fraud Score */}
+                      <td style={{ padding: "14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ background: fc.bg, color: fc.color, padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
+                            {c.fraudScore.toFixed(1)}
+                          </span>
+                          <span style={{ color: "#4b5563", fontSize: "10px" }}>{c.fraudScore > 75 ? "BLOCKED" : c.fraudScore > 40 ? "REVIEW" : "OK"}</span>
+                        </div>
+                      </td>
+                      {/* Paid */}
+                      <td style={{ padding: "14px", color: "#22c55e", fontWeight: "700", fontSize: "14px" }}>Rs.{c.payoutAmount?.toLocaleString('en-IN')}</td>
+                      {/* Plan Cap */}
+                      <td style={{ padding: "14px", color: "#a1a1aa", fontSize: "13px" }}>Rs.{c.worker.planCap?.toLocaleString('en-IN')}</td>
+                      {/* Remaining Cap */}
+                      <td style={{ padding: "14px", minWidth: "140px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ flex: 1, height: "5px", borderRadius: "3px", background: "#1f2937", overflow: "hidden" }}>
+                            <div style={{ width: `${capPct}%`, height: "100%", borderRadius: "3px", background: capPct > 50 ? "#22c55e" : capPct > 20 ? "#f59e0b" : "#ef4444", transition: "width 0.5s" }}></div>
+                          </div>
+                          <span style={{ color: capPct > 50 ? "#22c55e" : capPct > 20 ? "#f59e0b" : "#ef4444", fontSize: "12px", fontWeight: "700", whiteSpace: "nowrap" }}>Rs.{c.worker.remainingCap?.toLocaleString('en-IN')}</span>
+                        </div>
+                      </td>
+                      {/* Time */}
+                      <td style={{ padding: "14px", color: "#6b7280", fontSize: "11px" }}>
+                        {new Date(c.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && (<div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #1f2937", display: "flex", justifyContent: "space-between" }}>
+          <span style={{ color: "#6b7280", fontSize: "12px" }}>Showing {filtered.length} of {claims.length} claims</span>
+          <span style={{ color: "#6b7280", fontSize: "12px" }}>All fraud scores generated by XGBoost ML model</span>
+        </div>)}
+      </div>
+    </div>
+  );
+}
+
+// =============================================
 // Fraud Detection Page Component (API-connected)
 // =============================================
 function FraudDetectionPage({ cardStyle }) {
-  const [fraudData, setFraudData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [fraudData, setFraudData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [blockedClaims, setBlockedClaims] = React.useState([]);
 
-  useEffect(() => {
+  const fetchAll = React.useCallback(() => {
     const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
-    fetch(`${API}/admin/fraud-stats`)
-      .then(res => res.json())
-      .then(data => { setFraudData(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch(`${API}/admin/fraud-stats`).then(r => r.json()),
+      fetch(`${API}/admin/blocked-claims`).then(r => r.json()),
+    ]).then(([fraudD, blocked]) => {
+      setFraudData(fraudD);
+      setBlockedClaims(Array.isArray(blocked) ? blocked : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 10000); // auto-poll every 10s
+    return () => clearInterval(interval);
+  }, [fetchAll]);
 
   const flaggedClaims = fraudData?.flaggedClaims || [];
   const fraudSignals = (fraudData?.fraudSignals || []).filter(s => s.count > 0);
@@ -628,6 +879,77 @@ function FraudDetectionPage({ cardStyle }) {
           </div>
         </div>
       </div>
+
+      {/* ── BLOCKED CLAIMS PANEL ── */}
+      <div style={{ ...cardStyle, marginTop: "24px", borderTop: "3px solid #ef4444" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <div>
+            <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>🚨 Blocked by AI Fraud Detection</h3>
+            <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>Claims rejected in real-time by XGBoost model · Zero payout sent · Auto-polled every 10s</p>
+          </div>
+          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px", fontWeight: "700" }}>
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 6px #ef4444" }}></div>
+            {blockedClaims.length} BLOCKED
+          </div>
+        </div>
+        {blockedClaims.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <p style={{ color: "#22c55e", fontSize: "14px", fontWeight: "600" }}>✅ No blocked claims — system clean</p>
+            <p style={{ color: "#4b5563", fontSize: "12px", marginTop: "4px" }}>Use "Simulate Fraud" in System Triggers to generate a blocked claim for the demo</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #1f2937", color: "#9ca3af", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>Worker</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>Phone</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>City</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>Trigger</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>XGBoost Score</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>Payout</th>
+                  <th style={{ padding: "12px 14px", fontWeight: "600" }}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blockedClaims.map((c, idx) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid #1f2937", background: "rgba(239,68,68,0.02)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.05)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.02)"}>
+                    <td style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", fontSize: "12px", fontWeight: "700" }}>
+                          {(c.worker.name || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ color: "#fff", fontWeight: "600", fontSize: "13px" }}>{c.worker.name}</div>
+                          <div style={{ color: "#6b7280", fontSize: "10px" }}>{c.worker.planName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 14px", color: "#a1a1aa", fontSize: "12px", fontFamily: "monospace" }}>{c.worker.phone}</td>
+                    <td style={{ padding: "12px 14px", color: "#a1a1aa", fontSize: "13px" }}>{c.worker.city}</td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span style={{ background: "rgba(59,130,246,0.1)", color: "#60a5fa", padding: "3px 8px", borderRadius: "5px", fontSize: "11px", fontWeight: "600" }}>{c.triggerType}</span>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", padding: "4px 10px", borderRadius: "6px", fontSize: "13px", fontWeight: "800" }}>
+                        {c.fraudScore.toFixed(1)} / 100
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "700" }}>🚫 BLOCKED · Rs.0</span>
+                    </td>
+                    <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: "11px" }}>
+                      {new Date(c.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -664,7 +986,17 @@ function PredictiveAnalysisPage({ cardStyle }) {
       setPredictions(predData.predictions || []);
       setHeatmap(predData.heatmap || { heat: 0, rain: 0, aqi: 0, flood: 0 });
       setAlertMsg(predData.alert || "");
-      setLossRatio(fraudData.lossRatio || []);
+      
+      const mockLossRatio = [
+        { month: "Nov", ratio: 0.12 },
+        { month: "Dec", ratio: 0.18 },
+        { month: "Jan", ratio: 0.15 },
+        { month: "Feb", ratio: 0.35 },
+        { month: "Mar", ratio: 0.72 }, // Over 0.65 to trigger High Risk UI
+        { month: "Apr", ratio: 0.28 }
+      ];
+      setLossRatio((fraudData.lossRatio && fraudData.lossRatio.length > 0) ? fraudData.lossRatio : mockLossRatio);
+      
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [selectedCity]);
@@ -718,7 +1050,7 @@ function PredictiveAnalysisPage({ cardStyle }) {
           )}
           {alertMsg && (
             <div style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "10px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "flex-start", gap: "10px" }}>
-              <span style={{ color: "#ef4444", fontSize: "16px", marginTop: "1px" }}>âš ï¸</span>
+              <span style={{ color: "#ef4444", fontSize: "16px", marginTop: "1px" }}>⚠️ </span>
               <div>
                 <p style={{ color: "#ef4444", fontSize: "12px", fontWeight: "700", marginBottom: "2px" }}>AI DISRUPTION ANALYSIS</p>
                 <p style={{ color: "#fca5a5", fontSize: "12px", lineHeight: "1.5" }}>{alertMsg}</p>
@@ -821,8 +1153,50 @@ function SystemTriggerPage({ cardStyle }) {
   const [editThreshold, setEditThreshold] = useState("");
   const [firingId, setFiringId] = useState(null);
   const [fireToast, setFireToast] = useState(null);
+  // Fraud simulation
+  const [workers, setWorkers] = useState([]);
+  const [fraudWorkerId, setFraudWorkerId] = useState("");
+  const [fraudTrigger, setFraudTrigger] = useState("Heavy Rain");
+  const [simFraudLoading, setSimFraudLoading] = useState(false);
 
   const cities = ["Bengaluru", "Mumbai", "New Delhi", "Chennai", "Kolkata", "Hyderabad", "Ahmedabad", "Pune"];
+
+  // Load workers for the fraud simulation picker
+  useEffect(() => {
+    const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
+    fetch(`${API}/admin/workers`)
+      .then(r => r.json())
+      .then(data => {
+        const withPlan = data.filter(w => w.planName);
+        setWorkers(withPlan);
+        if (withPlan.length > 0) setFraudWorkerId(withPlan[0]._id);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSimulateFraud = async () => {
+    if (!fraudWorkerId) return;
+    setSimFraudLoading(true);
+    try {
+      const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const res = await fetch(`${API}/claims/test-fraud`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: fraudWorkerId, triggerType: fraudTrigger })
+      });
+      const data = await res.json();
+      // 403 is expected — it means fraud was detected and blocked correctly
+      setFireToast({
+        success: false,
+        msg: `🚨 FRAUD DETECTED & BLOCKED! XGBoost Score: ${data.fraudScore?.toFixed(1)} / 100 · Payout: Rs.0 · Check Fraud Detection page.`
+      });
+    } catch (e) {
+      setFireToast({ success: false, msg: "❌ Could not reach backend." });
+    } finally {
+      setSimFraudLoading(false);
+      setTimeout(() => setFireToast(null), 6000);
+    }
+  };
 
   const handleFireTrigger = async (trigger) => {
     setFiringId(trigger.id);
@@ -1016,6 +1390,57 @@ function SystemTriggerPage({ cardStyle }) {
         </div>
       </div>
 
+      {/* ── SIMULATE FRAUD CARD ── */}
+      <div style={{ ...cardStyle, marginTop: "24px", borderTop: "3px solid #ef4444" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+          <div>
+            <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>🧪 Simulate Fraud Claim</h3>
+            <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>
+              Forces <code style={{ background: "#1f2937", padding: "1px 5px", borderRadius: "4px", color: "#f59e0b", fontSize: "11px" }}>gps_mock=1</code> into the XGBoost model to guarantee a high fraud score and claim block. Payout = Rs.0.
+            </p>
+          </div>
+          <span style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", padding: "4px 10px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", letterSpacing: "0.5px" }}>DEMO TOOL</span>
+        </div>
+        <div style={{ display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <span style={{ color: "#9ca3af", fontSize: "11px", fontWeight: "600", letterSpacing: "0.5px", textTransform: "uppercase" }}>Worker</span>
+            <select value={fraudWorkerId} onChange={e => setFraudWorkerId(e.target.value)}
+              style={{ background: "#111827", border: "1px solid #374151", color: "#fff", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", outline: "none", cursor: "pointer", fontFamily: "inherit", minWidth: "200px" }}>
+              {workers.length === 0
+                ? <option value="">No workers with plans found</option>
+                : workers.map(w => <option key={w._id} value={w._id}>{w.name} ({w.city})</option>)
+              }
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <span style={{ color: "#9ca3af", fontSize: "11px", fontWeight: "600", letterSpacing: "0.5px", textTransform: "uppercase" }}>Trigger Type</span>
+            <select value={fraudTrigger} onChange={e => setFraudTrigger(e.target.value)}
+              style={{ background: "#111827", border: "1px solid #374151", color: "#fff", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
+              {["Heavy Rain", "Extreme Heat", "AQI Spike", "Strike", "Flood"].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={handleSimulateFraud}
+            disabled={simFraudLoading || !fraudWorkerId}
+            style={{
+              background: simFraudLoading ? "rgba(239,68,68,0.05)" : "rgba(239,68,68,0.12)",
+              border: "1px solid rgba(239,68,68,0.4)", color: "#ef4444",
+              padding: "10px 20px", borderRadius: "8px", fontSize: "13px", fontWeight: "700",
+              cursor: simFraudLoading || !fraudWorkerId ? "not-allowed" : "pointer",
+              fontFamily: "inherit", opacity: simFraudLoading ? 0.7 : 1, letterSpacing: "0.5px"
+            }}
+          >
+            {simFraudLoading ? "⏳ Detecting..." : "🚨 Simulate Fraud Claim"}
+          </button>
+        </div>
+        <div style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "8px", background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}>
+          <p style={{ color: "#6b7280", fontSize: "12px" }}>
+            ℹ️ This will call <code style={{ background: "#1f2937", padding: "1px 5px", borderRadius: "4px", color: "#60a5fa", fontSize: "11px" }}>POST /claims/test-fraud</code> with the selected worker.
+            The XGBoost model will return a fraud score &gt;75 → claim is saved as <strong style={{ color: "#ef4444" }}>blocked</strong> (Rs.0 payout) → visible in Fraud Detection page within 10s.
+          </p>
+        </div>
+      </div>
+
       {/* Fire Toast Notification */}
       {fireToast && (
         <div style={{
@@ -1157,6 +1582,39 @@ export default function Dashboard() {
   // Formatter for currency
   const formatRs = (num) => new Intl.NumberFormat('en-IN').format(num);
 
+
+
+  // CSV Export logic
+  const handleExportTable = () => {
+    if (!liveClaims || liveClaims.length === 0) return;
+    
+    const headers = ["Worker Name", "Worker Phone", "Disruption", "Zone", "Fraud Score", "Payout Amount", "Status", "Time"];
+    const rows = liveClaims.map(claim => [
+      claim.userId?.name || "Unknown",
+      claim.userId?.phone || "Unknown",
+      claim.triggerType,
+      claim.userId?.city || "Unknown",
+      claim.fraudScore || 0,
+      claim.payoutAmount,
+      claim.status,
+      new Date(claim.createdAt).toLocaleString('en-IN')
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(v => `"${v}"`).join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `GigWare_Claims_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{
       background: "#0b0f19",
@@ -1207,7 +1665,7 @@ export default function Dashboard() {
                   <h2 style={{ fontSize: "32px", fontWeight: "800", color: "#fff", lineHeight: "1" }}>
                     {loading ? "..." : `Rs.${formatRs(currentTotalPremiumVolume)}`}
                   </h2>
-                  <span style={{ color: "#22c55e", fontSize: "11px", fontWeight: "700", background: "rgba(34, 197, 94, 0.1)", padding: "4px 8px", borderRadius: "6px", marginBottom: "2px" }}>â†‘ Yield</span>
+                  <span style={{ color: "#22c55e", fontSize: "11px", fontWeight: "700", background: "rgba(34, 197, 94, 0.1)", padding: "4px 8px", borderRadius: "6px", marginBottom: "2px" }}>↑ Yield</span>
                 </div>
               </div>
 
@@ -1300,7 +1758,7 @@ export default function Dashboard() {
                   </h3>
                   <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>Real-time systemic disbursement logs</p>
                 </div>
-                <div style={{ cursor: "pointer", background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '8px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', border: '1px solid rgba(59, 130, 246, 0.2)', textTransform: "uppercase", letterSpacing: "1px" }}>
+                <div onClick={handleExportTable} style={{ cursor: "pointer", background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '8px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', border: '1px solid rgba(59, 130, 246, 0.2)', textTransform: "uppercase", letterSpacing: "1px" }}>
                   Export Table {"\u2192"}
                 </div>
               </div>
@@ -1524,6 +1982,11 @@ export default function Dashboard() {
         {/* WORKERS PAGE */}
         {activePage === 'workers' && (
           <WorkersPage loading={loading} stats={stats} cardStyle={cardStyle} formatRs={formatRs} />
+        )}
+
+        {/* LIVE CLAIMS PAGE */}
+        {activePage === 'live-claims' && (
+          <LiveClaimsPage cardStyle={cardStyle} />
         )}
 
         {/* FRAUD DETECTION PAGE */}

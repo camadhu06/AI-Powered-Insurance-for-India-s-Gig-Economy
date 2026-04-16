@@ -6,36 +6,74 @@ export default function SupportScreen({ route }) {
   const [eventType, setEventType] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timeline, setTimeline] = useState([]);
 
   const handleSubmit = async () => {
     if (!eventType || !pinCode) return;
     setLoading(true);
+    setTimeline([
+      { id: 1, text: "Authenticating location and user...", status: "done" },
+      { id: 2, text: "Sent to AI Fraud Detection engine...", status: "loading" }
+    ]);
     
+    // Simulate initial latency for dramatic effect
+    await new Promise(r => setTimeout(r, 1200));
+    
+    let res, data;
     try {
-      const res = await fetch('http://localhost:5000/claims/auto', {
+      res = await fetch('http://localhost:5000/claims/auto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: worker?._id, 
-          triggerType: 'Strike', // mapping all manual reports to a generic strike/system disruption for demo
+          triggerType: 'Strike',
           severity: 100,
           hoursLost: 3
         })
       });
-      
-      const data = await res.json();
-      if (res.ok) {
-        Alert.alert("Report Submitted", "Our AI has verified your report and initiated a claim.");
+      data = await res.json();
+    } catch (err) {
+      setTimeline(prev => [
+        ...prev.map(t => t.id === 2 ? { ...t, status: "error" } : t),
+        { id: 3, text: `Connection Failed: ${err.message}`, status: "error", final: true }
+      ]);
+      setLoading(false);
+      return;
+    }
+
+    if (res.status === 403 || !res.ok) {
+      // Fraud or duplicate
+      setTimeline(prev => [
+        ...prev.map(t => t.id === 2 ? { ...t, status: "error" } : t),
+        { id: 3, text: "Anomalous patterns found in claim logic.", status: "error" },
+        { id: 4, text: data.fraudScore 
+          ? `Fraud Detected (Score: ${data.fraudScore.toFixed(1)}). Claim Blocked.` 
+          : (data.error || "Claim rejected processing error."), status: "error", final: true }
+      ]);
+      setLoading(false);
+      return;
+    }
+    
+    // Success path follows ML checking
+    setTimeline(prev => [
+        ...prev.map(t => t.id === 2 ? { ...t, text: `AI Fraud check passed (Score: ${data.ai_insights?.fraud_score?.toFixed(1) || 0}).`, status: "done" } : t),
+        { id: 3, text: "AI Income Estimator calculating payout...", status: "loading" }
+    ]);
+    
+    await new Promise(r => setTimeout(r, 1500));
+    
+    setTimeline(prev => [
+        ...prev.map(t => t.id === 3 ? { ...t, text: `AI Model Estimated Loss: Rs. ${data.ai_insights?.loss_estimated || 0}`, status: "done" } : t),
+        { id: 4, text: "Claim Success! Check Claims Page.", status: "done", final: true }
+    ]);
+    
+    setLoading(false);
+    
+    setTimeout(() => {
         setEventType('');
         setPinCode('');
-      } else {
-        Alert.alert("Error", data.message || data.error || "Failed to submit.");
-      }
-    } catch (err) {
-      console.warn(err);
-    } finally {
-      setLoading(false);
-    }
+        setTimeline([]);
+    }, 5000);
   };
 
   return (
@@ -81,6 +119,26 @@ export default function SupportScreen({ route }) {
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Submit for AI Verification</Text>}
           </Pressable>
+
+          {/* AI Timeline UI */}
+          {timeline.length > 0 && (
+            <View style={{ marginTop: 24, padding: 16, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, borderWidth: 1, borderColor: '#1f2937' }}>
+              {timeline.map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: idx === timeline.length - 1 ? 0 : 12 }}>
+                  <Text style={{ marginRight: 12, fontSize: 16 }}>{item.status === 'loading' ? '⏳' : item.status === 'error' ? '❌' : '✅'}</Text>
+                  <Text style={{ 
+                    color: item.status === 'error' ? '#fca5a5' : (item.status === 'done' && item.final) ? '#86efac' : '#d1d5db', 
+                    fontSize: 13, 
+                    flex: 1, 
+                    lineHeight: 20, 
+                    fontWeight: item.final ? '700' : '500' 
+                  }}>
+                    {item.text}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
       </ScrollView>

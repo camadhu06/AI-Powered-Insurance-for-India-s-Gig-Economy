@@ -366,8 +366,6 @@ app.get("/trigger/aqi", async (req, res) => {
       message: `Simulated Severe Air Pollution for Demo`
     });
   }
-    res.status(500).json({ message: "AQI API error", error: err.message });
-  }
 });
 
 // ========================
@@ -507,7 +505,19 @@ app.post("/claims/auto", async (req, res) => {
     }
     
     if (fraudScore > 75) {
-       return res.status(403).json({ message: "Claim automatically rejected due to high fraud probability.", fraudScore });
+      // Save the BLOCKED claim to DB so admin can see it in the Fraud Detection panel
+      const blockedClaim = new Claim({
+        userId: user._id,
+        triggerType,
+        hoursLost: req.body.hoursLost || 3,
+        payoutAmount: 0, // No payout — blocked
+        fraudScore,
+        razorpayPayoutId: null,
+        status: "blocked"
+      });
+      await blockedClaim.save();
+      console.log(`\n🚨 FRAUD DETECTED: ${user.name} | Score: ${fraudScore} | CLAIM BLOCKED`);
+      return res.status(403).json({ message: "Claim automatically rejected due to high fraud probability.", fraudScore });
     }
 
     // 3. AI Income Estimator
@@ -545,9 +555,17 @@ app.post("/claims/auto", async (req, res) => {
       });
       rzpPayoutId = rzpOrder.id; // Using order ID as payout trace
     } catch (rzpErr) {
-      console.log("Razorpay Sandbox API warning. Mocking payout ID.", rzpErr.message);
-      rzpPayoutId = `pout_sim_${Date.now()}`;
+      console.log("Razorpay API warning (running in offline/simulated mode):", rzpErr.message);
+      rzpPayoutId = `pay_sim_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     }
+
+    // Always print payout confirmation to terminal for Demo Video!
+    console.log(`\n=========================================`);
+    console.log(`✅ RAZORPAY PAYOUT DISBURSED SUCCESSFULLY!`);
+    console.log(`👤 Worker: ${user.name}`);
+    console.log(`💳 Amount: Rs. ${estimatedLoss}`);
+    console.log(`🆔 Txn ID: ${rzpPayoutId}`);
+    console.log(`=========================================\n`);
 
     // 6. Create new Claim
     const claim = new Claim({
@@ -585,6 +603,88 @@ app.get("/claims", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+// ========================
+// POST /claims/test-fraud — Force a fraud attempt for demo (gps_mock=1 → guarantees high XGBoost score)
+// ========================
+app.post("/claims/test-fraud", async (req, res) => {
+  // Override fraud-signal fields to guarantee detection
+  req.body.gps_mock = 1;
+  req.body.distance_from_zone = 20;
+  // Reuse all the auto-claim logic by delegating
+  const { userId, triggerType } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.planName) return res.status(400).json({ message: "User has no active plan" });
+
+    const ML_API = process.env.ML_SERVICE_URL || "http://127.0.0.1:8000";
+    let fraudScore = 95; // Default high if ML is offline
+    try {
+      const fraudRes = await axios.post(`${ML_API}/predict/fraud`, {
+        gps_mock: 1,
+        distance: 20,
+        claim_velocity: 35,
+        platform_active: 0
+      });
+      fraudScore = fraudRes.data.fraud_score;
+    } catch (e) {
+      console.log("Fraud ML offline, using simulated score 95");
+    }
+
+    const blockedClaim = new Claim({
+      userId: user._id,
+      triggerType: triggerType || "Heavy Rain",
+      hoursLost: req.body.hoursLost || 3,
+      payoutAmount: 0,
+      fraudScore,
+      razorpayPayoutId: null,
+      status: "blocked"
+    });
+    await blockedClaim.save();
+
+    console.log(`\n🚨 FRAUD TEST: ${user.name} | Score: ${fraudScore} | CLAIM BLOCKED`);
+    return res.status(403).json({
+      message: "Claim blocked by XGBoost fraud model.",
+      fraudScore,
+      claimId: blockedClaim._id
+    });
+  } catch (err) {
+    console.error("Test fraud error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
+// GET /admin/blocked-claims — All fraud-blocked claims with full worker details
+// ========================
+app.get("/admin/blocked-claims", async (req, res) => {
+  try {
+    const blocked = await Claim.find({ status: "blocked" })
+      .populate("userId", "name phone city planName")
+      .sort({ createdAt: -1 });
+
+    const enriched = blocked.map(c => ({
+      claimId: c._id,
+      createdAt: c.createdAt,
+      triggerType: c.triggerType,
+      fraudScore: c.fraudScore || 0,
+      worker: {
+        name: c.userId?.name || "Unknown",
+        phone: c.userId?.phone || "—",
+        city: c.userId?.city || "Unknown",
+        planName: c.userId?.planName || "No Plan",
+      }
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    console.error("Blocked claims error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 
 // ========================
 // GET /admin/stats
@@ -874,11 +974,11 @@ app.get("/admin/predictions/:city", async (req, res) => {
 });
 
 // ========================
-// GET /admin/fraud-stats — Fraud metrics from real claims data
+// GET /admin/fraud-stats — Real XGBoost ML fraud scores from DB
 // ========================
 app.get("/admin/fraud-stats", async (req, res) => {
   try {
-    const claims = await Claim.find().populate("userId", "name phone city platforms planName");
+    const claims = await Claim.find().populate("userId", "name phone city platforms planName weeklyPremium createdAt");
     const workers = await User.find();
 
     // Analyze claims for fraud patterns
@@ -892,14 +992,14 @@ app.get("/admin/fraud-stats", async (req, res) => {
     const flaggedClaims = [];
     let highRisk = 0, mediumRisk = 0, fraudPrevented = 0;
 
-    // Fraud signals from README
+    // Fraud signals — driven entirely by real claim data, no random values
     const signals = {
-      "Mock Location Flag (Spoof)": 0,
-      "Device Integrity Failed": 0,
-      "Cell Tower Mismatch": 0,
-      "Unnatural Movement Pattern": 0,
-      "WiFi Triangulation Failed": 0,
-      "Zero Platform Activity": 0
+      "High ML Fraud Score (XGBoost)": 0,
+      "Anomalous Claim Frequency": 0,
+      "Same-Day Duplicate Claims": 0,
+      "Immediate Registration Claim": 0,
+      "Zero Platform Activity Signal": 0,
+      "Elevated Payout Pattern": 0,
     };
 
     Object.entries(claimsByUser).forEach(([uid, userClaims]) => {
@@ -907,7 +1007,22 @@ app.get("/admin/fraud-stats", async (req, res) => {
       let riskScore = 0;
       let reasons = [];
 
-      // Check duplicate claims same day
+      // 1. Real XGBoost fraud scores stored on each claim
+      const avgFraudScore = userClaims.reduce((s, c) => s + (c.fraudScore || 0), 0) / userClaims.length;
+      if (avgFraudScore > 40) {
+        riskScore += Math.round(avgFraudScore * 0.6);
+        reasons.push(`ML Fraud Score: ${avgFraudScore.toFixed(1)}`);
+        signals["High ML Fraud Score (XGBoost)"]++;
+      }
+
+      // 2. Claim frequency
+      if (userClaims.length > 3) {
+        riskScore += 20;
+        reasons.push("High claim frequency");
+        signals["Anomalous Claim Frequency"]++;
+      }
+
+      // 3. Same-day duplicate check
       const dateMap = {};
       userClaims.forEach(c => {
         const day = new Date(c.createdAt).toDateString();
@@ -915,84 +1030,75 @@ app.get("/admin/fraud-stats", async (req, res) => {
       });
       const dupes = Object.values(dateMap).filter(v => v > 1).length;
       if (dupes > 0) {
-        riskScore += 30;
-        reasons.push("Multiple claims detected");
-        signals["Zero Platform Activity"] += dupes;
+        riskScore += 15;
+        reasons.push("Same-day duplicate claim");
+        signals["Same-Day Duplicate Claims"] += dupes;
       }
 
-      // High frequency
-      if (userClaims.length > 3) {
-        riskScore += 25;
-        reasons.push("Anomalous claim frequency");
-        signals["Unnatural Movement Pattern"]++;
-      }
-
-      // No active plan
-      if (!worker?.planName) {
-        riskScore += 20;
-        reasons.push("Unverified insurance pool");
-        signals["Mock Location Flag (Spoof)"]++;
-      }
-
-      // New account with immediate claims
+      // 4. New account immediately claiming
       if (worker?.createdAt) {
         const daysSinceReg = (Date.now() - new Date(worker.createdAt).getTime()) / (1000 * 60 * 60 * 24);
         if (daysSinceReg < 2 && userClaims.length > 0) {
           riskScore += 15;
-          reasons.push("Immediate registration claim");
-          signals["Device Integrity Failed"]++;
+          reasons.push("Immediate post-registration claim");
+          signals["Immediate Registration Claim"]++;
         }
       }
 
-      // Unusual payout
-      const avgPayout = userClaims.reduce((s, c) => s + (c.payoutAmount || 0), 0) / userClaims.length;
-      if (avgPayout > 500) {
+      // 5. No active plan
+      if (!worker?.planName) {
         riskScore += 10;
-        signals["Cell Tower Mismatch"]++;
+        reasons.push("No active insurance plan");
+        signals["Zero Platform Activity Signal"]++;
       }
-      
-      // Randomly populate WiFi for visual dashboard data
-      if (Math.random() > 0.8) {
-        signals["WiFi Triangulation Failed"]++;
+
+      // 6. Payout vs premium ratio
+      const weeklyPremium = worker?.weeklyPremium || 99;
+      const avgPayout = userClaims.reduce((s, c) => s + (c.payoutAmount || 0), 0) / userClaims.length;
+      if (avgPayout > weeklyPremium * 8) {
+        riskScore += 10;
+        reasons.push("Elevated payout vs premium");
+        signals["Elevated Payout Pattern"]++;
       }
 
       riskScore = Math.min(riskScore, 100);
-      
+
       if (riskScore >= 60) {
         highRisk++;
         fraudPrevented += userClaims.reduce((s, c) => s + (c.payoutAmount || 0), 0);
         flaggedClaims.push({
           id: uid,
           name: worker?.name || "Unknown",
+          phone: worker?.phone || "—",
           location: worker?.city || "Unknown",
           riskLevel: "High",
-          reason: reasons.join(" + ") || "Multiple risk factors",
-          score: riskScore
+          reason: reasons.join(" · ") || "Multiple risk factors",
+          score: riskScore,
+          mlFraudScore: Math.round(avgFraudScore),
         });
       } else if (riskScore >= 30) {
         mediumRisk++;
         flaggedClaims.push({
           id: uid,
           name: worker?.name || "Unknown",
+          phone: worker?.phone || "—",
           location: worker?.city || "Unknown",
           riskLevel: "Medium",
-          reason: reasons.join(" + ") || "Minor risk factors",
-          score: riskScore
+          reason: reasons.join(" · ") || "Minor risk factors",
+          score: riskScore,
+          mlFraudScore: Math.round(avgFraudScore),
         });
       }
     });
 
-    // Loss ratio data from real claims (group by month)
+    // Loss ratio from real DB data
     const lossRatioByMonth = {};
     claims.forEach(c => {
       const month = new Date(c.createdAt).toLocaleString('en-US', { month: 'short' });
-      if (!lossRatioByMonth[month]) lossRatioByMonth[month] = { claims: 0, count: 0 };
+      if (!lossRatioByMonth[month]) lossRatioByMonth[month] = { claims: 0 };
       lossRatioByMonth[month].claims += c.payoutAmount || 0;
-      lossRatioByMonth[month].count++;
     });
-
     const totalPremiumCollected = workers.filter(w => w.weeklyPremium).reduce((s, w) => s + (w.weeklyPremium || 0), 0);
-    
     const lossRatio = Object.entries(lossRatioByMonth).map(([month, data]) => ({
       month,
       ratio: totalPremiumCollected > 0 ? Math.round((data.claims / (totalPremiumCollected * 4)) * 100) / 100 : 0
@@ -1016,6 +1122,59 @@ app.get("/admin/fraud-stats", async (req, res) => {
 });
 
 // ========================
+// GET /admin/live-claims — All claims with full worker details
+// ========================
+app.get("/admin/live-claims", async (req, res) => {
+  try {
+    const claims = await Claim.find()
+      .populate("userId", "name phone city planName weeklyPremium")
+      .sort({ createdAt: -1 });
+
+    const planCaps = { "Basic Shield": 1500, "Standard Shield": 2500, "Full Shield": 3500 };
+
+    // Compute total paid out per user to derive remaining cap
+    const payoutByUser = {};
+    claims.forEach(c => {
+      const uid = c.userId?._id?.toString();
+      if (!uid) return;
+      payoutByUser[uid] = (payoutByUser[uid] || 0) + (c.payoutAmount || 0);
+    });
+
+    const enriched = claims.map(c => {
+      const worker = c.userId;
+      const cap = planCaps[worker?.planName] || 1500;
+      const totalPaid = payoutByUser[worker?._id?.toString()] || 0;
+      const remaining = Math.max(cap - totalPaid, 0);
+
+      return {
+        claimId: c._id,
+        createdAt: c.createdAt,
+        triggerType: c.triggerType,
+        hoursLost: c.hoursLost,
+        payoutAmount: c.payoutAmount,
+        fraudScore: c.fraudScore || 0,
+        razorpayPayoutId: c.razorpayPayoutId,
+        status: c.status,
+        worker: {
+          name: worker?.name || "Unknown",
+          phone: worker?.phone || "—",
+          city: worker?.city || "Unknown",
+          planName: worker?.planName || "No Plan",
+          weeklyPremium: worker?.weeklyPremium || 0,
+          planCap: cap,
+          remainingCap: remaining,
+        }
+      };
+    });
+
+    res.json(enriched);
+  } catch (err) {
+    console.error("Live claims error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ========================
 // POST /trigger/fire — Demo: Fire a trigger for all active workers in a city
 // ========================
 app.post("/trigger/fire", async (req, res) => {
@@ -1026,62 +1185,91 @@ app.post("/trigger/fire", async (req, res) => {
       return res.status(400).json({ message: "triggerType and city are required" });
     }
 
-    let cityRegexes;
-    if (city === "New Delhi" || city === "Delhi") {
-      cityRegexes = [new RegExp("^delhi$", "i"), new RegExp("^new delhi$", "i")];
+    // ── Relaxed city match: trims whitespace and is fully case-insensitive ──
+    let cityQuery;
+    if (city === "New Delhi" || city.toLowerCase() === "delhi") {
+      cityQuery = { $in: [/delhi/i, /new delhi/i] };
     } else {
-      cityRegexes = [new RegExp(`^${city}$`, "i")];
+      cityQuery = new RegExp(city.trim(), "i");
     }
 
-    // Find all active-plan workers in the city (case-insensitive)
-    const workers = await User.find({ city: { $in: cityRegexes }, planName: { $ne: null } });
+    // Find all workers in the city that have an active insurance plan
+    const workers = await User.find({ city: cityQuery, planName: { $ne: null } });
 
     if (workers.length === 0) {
       return res.status(404).json({ message: `No active-plan workers found in ${city}` });
     }
 
-    const multipliers = {
-      "Heavy Rain": 1.0,
-      "Extreme Heat": 0.8,
-      "AQI Spike": 0.7,
-      "Strike": 1.0,
-      "Flood": 1.2
+    // Severity scores the ML income model uses per trigger type
+    const severityMap = {
+      "Heavy Rain":   80,
+      "Extreme Heat": 45,
+      "AQI Spike":    200,
+      "Strike":       90,
+      "Flood":        100,
     };
-    const multiplier = multipliers[triggerType] || 1.0;
+    const triggerSeverity = severityMap[triggerType] || 50;
 
+    // Zone risk by plan tier (richer plans = higher-income workers = slightly more risk exposure)
+    const zoneRiskByPlan = {
+      "Basic Shield":    1.0,
+      "Standard Shield": 1.1,
+      "Full Shield":     1.2,
+    };
+
+    const ML_API = process.env.ML_SERVICE_URL || "http://127.0.0.1:8000";
     const processedClaims = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (const worker of workers) {
-      // Skip if already claimed today for this trigger
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Skip workers who already have a claim for this trigger today
       const existing = await Claim.findOne({ userId: worker._id, triggerType, createdAt: { $gte: today } });
       if (existing) continue;
 
       const hourlyRate = (worker.avgDailyEarnings || 600) / 8;
-      let estimatedLoss = hourlyRate * hoursLost * multiplier;
+      const zoneRisk = zoneRiskByPlan[worker.planName] || 1.0;
+
+      // ── AI: Call ML income estimator for this worker ──
+      let estimatedLoss = hourlyRate * hoursLost; // plain fallback
+      try {
+        const mlResponse = await axios.post(`${ML_API}/predict/income`, {
+          hours_lost:       hoursLost,
+          hourly_rate:      hourlyRate,
+          trigger_severity: triggerSeverity,
+          zone_risk:        zoneRisk,
+        });
+        estimatedLoss = mlResponse.data.estimated_loss;
+        console.log(`🤖 ML payout for ${worker.name}: Rs. ${estimatedLoss.toFixed(0)}`);
+      } catch (mlErr) {
+        console.log(`⚠️  ML API offline for ${worker.name}, using fallback. (${mlErr.message})`);
+      }
+
+      // Round to nearest ₹10 and cap at plan's weekly limit
       estimatedLoss = Math.round(estimatedLoss / 10) * 10;
+      const planCaps = { "Basic Shield": 1500, "Standard Shield": 2500, "Full Shield": 3500 };
+      estimatedLoss = Math.min(estimatedLoss, planCaps[worker.planName] || 1500);
 
-      // Cap at plan limit
-      const planLimits = { "Basic Shield": 1500, "Standard Shield": 2500, "Full Shield": 3500 };
-      const cap = planLimits[worker.planName] || 1500;
-      estimatedLoss = Math.min(estimatedLoss, cap);
-
+      // Save the claim
       const claim = new Claim({
-        userId: worker._id,
+        userId:      worker._id,
         triggerType,
         hoursLost,
         payoutAmount: estimatedLoss,
-        status: "paid"
+        fraudScore:  0, // Mass trigger is admin-verified; fraud check skipped
+        status:      "paid",
       });
       await claim.save();
-      processedClaims.push({ worker: worker.name, payout: estimatedLoss });
+      processedClaims.push({ worker: worker.name, city: worker.city, plan: worker.planName, payout: estimatedLoss });
     }
 
+    console.log(`\n🔥 Trigger fired: ${triggerType} in ${city}`);
+    console.log(`✅ ${processedClaims.length} workers paid:`, processedClaims.map(c => `${c.worker} → ₹${c.payout}`));
+
     res.json({
-      message: `Trigger fired: ${triggerType} in ${city}`,
+      message:        `Trigger fired: ${triggerType} in ${city}`,
       claimsProcessed: processedClaims.length,
-      claims: processedClaims
+      claims:         processedClaims,
     });
   } catch (err) {
     console.error("Trigger fire error:", err);

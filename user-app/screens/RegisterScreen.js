@@ -77,7 +77,7 @@ export default function RegisterScreen({ navigation }) {
           email: form.email.trim(),
           platform: form.platform,
           city: form.city.trim(),
-          avgDailyEarnings: Number(form.avgWeeklyEarning),
+          avgDailyEarnings: Math.round(Number(form.avgWeeklyEarning) / 7), // Convert weekly → daily
         }),
       });
 
