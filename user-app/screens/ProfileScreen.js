@@ -33,17 +33,19 @@ export default function ProfileScreen({ route, navigation }) {
 
         <Text style={styles.sectionTitle}>LINKED PLATFORMS</Text>
         <View style={styles.card}>
-          <View style={styles.platformRow}>
-            <View style={[styles.platformDot, { backgroundColor: '#fc8019' }]} />
-            <Text style={styles.platformName}>Swiggy</Text>
-            <Text style={styles.platformStatus}>Connected</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.platformRow}>
-            <View style={[styles.platformDot, { backgroundColor: '#e23744' }]} />
-            <Text style={styles.platformName}>Zomato</Text>
-            <Text style={styles.platformStatus}>Connected</Text>
-          </View>
+          {(worker?.platforms || (worker?.platform ? [worker.platform] : [])).map((plt, idx, arr) => (
+            <React.Fragment key={plt}>
+              <View style={styles.platformRow}>
+                <View style={[styles.platformDot, { backgroundColor: plt.toLowerCase() === 'swiggy' ? '#fc8019' : '#e23744' }]} />
+                <Text style={styles.platformName}>{plt}</Text>
+                <Text style={styles.platformStatus}>Connected</Text>
+              </View>
+              {idx < arr.length - 1 && <View style={styles.divider} />}
+            </React.Fragment>
+          ))}
+          {(!worker?.platforms && !worker?.platform) && (
+            <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center' }}>No platforms linked</Text>
+          )}
         </View>
 
         <Pressable 
