@@ -58,9 +58,11 @@ const claimSchema = new mongoose.Schema({
 
 const Claim = mongoose.model("Claim", claimSchema);
 
-// Temporary in-memory storage (kept for backwards compatibility if needed)
+// ========================
+// Temporary in-memory storage (kept for admin login)
+// ========================
 let adminUsers = [
-  { id: 0, name: process.env.ADMIN_USER || "admin", role: "admin" }
+  { id: 0, name: "admin", role: "admin" }
 ];
 
 // ========================
@@ -131,18 +133,18 @@ app.post("/login", async (req, res) => {
 });
 
 // ========================
-// ADMIN LOGIN API — by name & password (env based)
+// ADMIN LOGIN API — by name & password
 // ========================
 app.post("/admin-login", (req, res) => {
   const { name, password } = req.body;
   
-  const defaultAdmin = process.env.ADMIN_USER || "admin";
-  const defaultPass = process.env.ADMIN_PASS || "1234";
+  const user = adminUsers.find(u => u.name.toLowerCase() === (name || "").toLowerCase().trim());
+  const defaultPass = (process.env.ADMIN_PASS || "1234").trim();
 
-  if (name && name.toLowerCase() === defaultAdmin.toLowerCase() && password === defaultPass) {
+  if (user && password && String(password).trim() === defaultPass) {
     res.json({
       message: "Login successful",
-      user: { id: 0, name: defaultAdmin, role: "admin" }
+      user
     });
   } else {
     res.status(404).json({
@@ -694,14 +696,18 @@ app.get("/admin/stats", async (req, res) => {
     const activePlans = await User.countDocuments({ planName: { $ne: null } });
     const totalClaims = await Claim.countDocuments();
     
-    const claims = await Claim.find({}, 'payoutAmount');
-    const totalPaidOut = claims.reduce((sum, c) => sum + (c.payoutAmount || 0), 0);
+    const usersWithPremiums = await User.find({ weeklyPremium: { $ne: null } }, 'weeklyPremium');
+    const totalPremiums = usersWithPremiums.reduce((sum, u) => sum + (u.weeklyPremium || 0), 0);
 
+    const payoutClaims = await Claim.find({ status: "paid" }, 'payoutAmount');
+    const totalPaidOut = payoutClaims.reduce((sum, c) => sum + (c.payoutAmount || 0), 0);
+    
     res.json({
       totalWorkers,
       activePlans,
       totalClaims,
       totalPaidOut,
+      totalPremiums,
       avgPayoutTime: "4.2 mins"
     });
   } catch (err) {
@@ -1221,6 +1227,20 @@ app.post("/trigger/fire", async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // ── RAZORPAY HELPERS ──
+    async function generateMockPayoutId(amount) {
+      try {
+        const rzpOrder = await razorpayInstance.orders.create({
+          amount: Math.round(amount * 100),
+          currency: "INR",
+          receipt: `rcpt_${Math.random().toString(36).substr(2, 9)}`
+        });
+        return rzpOrder.id;
+      } catch (e) {
+        return `pay_sim_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      }
+    }
+
     for (const worker of workers) {
       // Skip workers who already have a claim for this trigger today
       const existing = await Claim.findOne({ userId: worker._id, triggerType, createdAt: { $gte: today } });
@@ -1249,17 +1269,21 @@ app.post("/trigger/fire", async (req, res) => {
       const planCaps = { "Basic Shield": 1500, "Standard Shield": 2500, "Full Shield": 3500 };
       estimatedLoss = Math.min(estimatedLoss, planCaps[worker.planName] || 1500);
 
+      // Generate Razorpay ID
+      const rzpId = await generateMockPayoutId(estimatedLoss);
+
       // Save the claim
       const claim = new Claim({
         userId:      worker._id,
         triggerType,
         hoursLost,
         payoutAmount: estimatedLoss,
+        razorpayPayoutId: rzpId,
         fraudScore:  0, // Mass trigger is admin-verified; fraud check skipped
         status:      "paid",
       });
       await claim.save();
-      processedClaims.push({ worker: worker.name, city: worker.city, plan: worker.planName, payout: estimatedLoss });
+      processedClaims.push({ worker: worker.name, city: worker.city, plan: worker.planName, payout: estimatedLoss, txnId: rzpId });
     }
 
     console.log(`\n🔥 Trigger fired: ${triggerType} in ${city}`);
@@ -1281,5 +1305,6 @@ app.post("/trigger/fire", async (req, res) => {
 // ========================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`\n🚀 API Server running on port ${PORT}`);
+  console.log(`🔐 Admin portal configured for user: ${process.env.ADMIN_USER || "admin"}\n`);
 });

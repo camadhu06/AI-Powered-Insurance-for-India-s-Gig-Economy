@@ -963,7 +963,6 @@ function PredictiveAnalysisPage({ cardStyle }) {
   const [predictions, setPredictions] = useState([]);
   const [heatmap, setHeatmap] = useState({ heat: 0, rain: 0, aqi: 0, flood: 0 });
   const [alertMsg, setAlertMsg] = useState("");
-  const [lossRatio, setLossRatio] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const statesAndCities = {
@@ -987,15 +986,6 @@ function PredictiveAnalysisPage({ cardStyle }) {
       setHeatmap(predData.heatmap || { heat: 0, rain: 0, aqi: 0, flood: 0 });
       setAlertMsg(predData.alert || "");
       
-      const mockLossRatio = [
-        { month: "Nov", ratio: 0.12 },
-        { month: "Dec", ratio: 0.18 },
-        { month: "Jan", ratio: 0.15 },
-        { month: "Feb", ratio: 0.35 },
-        { month: "Mar", ratio: 0.72 }, // Over 0.65 to trigger High Risk UI
-        { month: "Apr", ratio: 0.28 }
-      ];
-      setLossRatio((fraudData.lossRatio && fraudData.lossRatio.length > 0) ? fraudData.lossRatio : mockLossRatio);
       
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -1008,7 +998,6 @@ function PredictiveAnalysisPage({ cardStyle }) {
     { label: "Flood Risk", value: heatmap.flood || 0, color: "#0284c7" },
   ];
 
-  const maxRatio = Math.max(...lossRatio.map(d => d.ratio), 0.01);
 
   const selectStyle = {
     background: "#111827", border: "1px solid #1f2937", color: "#fff",
@@ -1022,70 +1011,6 @@ function PredictiveAnalysisPage({ cardStyle }) {
         <p style={{ color: "#9ca3af", marginTop: "4px" }}>Real-time weather forecast data from Open-Meteo and OpenAQ APIs.</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "24px", marginBottom: "32px" }}>
-        <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <div>
-              <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>Next Week Disruption Forecast</h3>
-              <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>7-day weather forecast for {selectedCity}</p>
-            </div>
-            <div style={{ background: "rgba(243,117,0,0.08)", border: "1px solid rgba(243,117,0,0.2)", padding: "5px 10px", borderRadius: "6px", fontSize: "10px", color: "#f37500", fontWeight: "700", letterSpacing: "0.5px" }}>
-              LIVE FORECAST
-            </div>
-          </div>
-          {loading ? <p style={{ color: "#6b7280" }}>Fetching forecast...</p> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {predictions.map((p, idx) => (
-                <div key={idx} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", background: p.probability > 60 ? "rgba(239,68,68,0.04)" : "transparent", border: p.probability > 60 ? "1px solid rgba(239,68,68,0.1)" : "1px solid transparent" }}>
-                  <span style={{ fontSize: "18px", width: "28px", textAlign: "center" }}>{p.icon}</span>
-                  <span style={{ color: "#e5e7eb", fontSize: "13px", fontWeight: "600", width: "120px" }}>{p.trigger}</span>
-                  <div style={{ flex: 1, height: "6px", borderRadius: "3px", background: "#1f2937", overflow: "hidden" }}>
-                    <div style={{ width: `${p.probability}%`, height: "100%", borderRadius: "3px", background: p.probability > 60 ? "#ef4444" : p.probability > 30 ? "#f59e0b" : "#22c55e", transition: "width 0.6s ease" }}></div>
-                  </div>
-                  <span style={{ color: p.probability > 60 ? "#ef4444" : p.probability > 30 ? "#f59e0b" : "#22c55e", fontSize: "13px", fontWeight: "700", width: "40px", textAlign: "right" }}>{p.probability}%</span>
-                  <span style={{ color: "#6b7280", fontSize: "11px", width: "50px", textAlign: "right" }}>ETA {p.eta}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {alertMsg && (
-            <div style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "10px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "flex-start", gap: "10px" }}>
-              <span style={{ color: "#ef4444", fontSize: "16px", marginTop: "1px" }}>⚠️ </span>
-              <div>
-                <p style={{ color: "#ef4444", fontSize: "12px", fontWeight: "700", marginBottom: "2px" }}>AI DISRUPTION ANALYSIS</p>
-                <p style={{ color: "#fca5a5", fontSize: "12px", lineHeight: "1.5" }}>{alertMsg}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={cardStyle}>
-          <div style={{ marginBottom: "20px" }}>
-            <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>Loss Ratio Trend</h3>
-            <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>Claims vs premiums collected (from DB)</p>
-          </div>
-          {lossRatio.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0" }}>
-              <p style={{ color: "#6b7280", fontSize: "13px" }}>No claim history yet</p>
-              <p style={{ color: "#4b5563", fontSize: "11px", marginTop: "4px" }}>Loss ratio data will appear once claims are processed</p>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "12px", height: "200px", paddingBottom: "30px", position: "relative" }}>
-              {lossRatio.map((d, idx) => {
-                const barHeight = (d.ratio / maxRatio) * 160;
-                const isAbove = d.ratio > 0.65;
-                return (
-                  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                    <span style={{ color: isAbove ? "#ef4444" : "#22c55e", fontSize: "11px", fontWeight: "700" }}>{(d.ratio * 100).toFixed(0)}%</span>
-                    <div style={{ width: "100%", maxWidth: "36px", height: `${barHeight}px`, borderRadius: "6px 6px 2px 2px", background: isAbove ? "linear-gradient(180deg, #ef4444, #991b1b)" : "linear-gradient(180deg, #22c55e, #15803d)", transition: "height 0.5s ease" }}></div>
-                    <span style={{ color: "#6b7280", fontSize: "11px", fontWeight: "500" }}>{d.month}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
 
       <div style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -1136,6 +1061,44 @@ function PredictiveAnalysisPage({ cardStyle }) {
             </div>
           </div>
         )}
+      </div>
+
+      <div style={{ marginBottom: "32px", marginTop: "32px" }}>
+        <div style={cardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div>
+              <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "600" }}>Next Week Disruption Forecast</h3>
+              <p style={{ color: "#71717a", fontSize: "12px", marginTop: "4px" }}>7-day weather forecast for {selectedCity}</p>
+            </div>
+            <div style={{ background: "rgba(243,117,0,0.08)", border: "1px solid rgba(243,117,0,0.2)", padding: "5px 10px", borderRadius: "6px", fontSize: "10px", color: "#f37500", fontWeight: "700", letterSpacing: "0.5px" }}>
+              LIVE FORECAST
+            </div>
+          </div>
+          {loading ? <p style={{ color: "#6b7280" }}>Fetching forecast...</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {predictions.map((p, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", background: p.probability > 60 ? "rgba(239,68,68,0.04)" : "transparent", border: p.probability > 60 ? "1px solid rgba(239,68,68,0.1)" : "1px solid transparent" }}>
+                  <span style={{ fontSize: "18px", width: "28px", textAlign: "center" }}>{p.icon}</span>
+                  <span style={{ color: "#e5e7eb", fontSize: "13px", fontWeight: "600", width: "120px" }}>{p.trigger}</span>
+                  <div style={{ flex: 1, height: "6px", borderRadius: "3px", background: "#1f2937", overflow: "hidden" }}>
+                    <div style={{ width: `${p.probability}%`, height: "100%", borderRadius: "3px", background: p.probability > 60 ? "#ef4444" : p.probability > 30 ? "#f59e0b" : "#22c55e", transition: "width 0.6s ease" }}></div>
+                  </div>
+                  <span style={{ color: p.probability > 60 ? "#ef4444" : p.probability > 30 ? "#f59e0b" : "#22c55e", fontSize: "13px", fontWeight: "700", width: "40px", textAlign: "right" }}>{p.probability}%</span>
+                  <span style={{ color: "#6b7280", fontSize: "11px", width: "50px", textAlign: "right" }}>ETA {p.eta}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {alertMsg && (
+            <div style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "10px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+              <span style={{ color: "#ef4444", fontSize: "16px", marginTop: "1px" }}>⚠️ </span>
+              <div>
+                <p style={{ color: "#ef4444", fontSize: "12px", fontWeight: "700", marginBottom: "2px" }}>AI DISRUPTION ANALYSIS</p>
+                <p style={{ color: "#fca5a5", fontSize: "12px", lineHeight: "1.5" }}>{alertMsg}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1472,6 +1435,7 @@ export default function Dashboard() {
     totalWorkers: 0,
     totalPaidOut: 0,
     totalClaims: 0,
+    totalPremiums: 0,
     avgPayoutTime: "0 mins"
   });
   const [liveClaims, setLiveClaims] = useState([]);
@@ -1545,7 +1509,7 @@ export default function Dashboard() {
   });
   
   // Real active premium volume calculation vs trailing payload
-  const currentTotalPremiumVolume = stats.activePlans * 79; // Using standard shield Rs 79 avg base
+  const currentTotalPremiumVolume = stats.totalPremiums || (stats.activePlans * 79);
 
   const dynamicBarData = Object.keys(tempBarDict).length > 0 
     ? Object.keys(tempBarDict).map(date => ({

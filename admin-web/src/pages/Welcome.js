@@ -43,22 +43,6 @@ export default function Welcome({ onFinish }) {
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="welcome-stats">
-          <div className="welcome-stat">
-            <div className="welcome-stat-value">2.8K+</div>
-            <div className="welcome-stat-label">Workers</div>
-          </div>
-          <div className="welcome-stat">
-            <div className="welcome-stat-value">342</div>
-            <div className="welcome-stat-label">Claims</div>
-          </div>
-          <div className="welcome-stat">
-            <div className="welcome-stat-value">₹2.4L</div>
-            <div className="welcome-stat-label">Premiums</div>
-          </div>
-        </div>
-
       </div>
 
       {/* Footer */}

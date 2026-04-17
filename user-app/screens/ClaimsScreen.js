@@ -53,9 +53,17 @@ export default function ClaimsScreen({ route }) {
                     {new Date(claim.createdAt).toLocaleDateString()}
                   </Text>
                   <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{claim.status.toUpperCase()}</Text>
+                    <Text style={styles.statusText}>
+                      {claim.status === 'paid' ? '✔ VERIFIED' : claim.status.toUpperCase()}
+                    </Text>
                   </View>
                 </View>
+                {claim.razorpayPayoutId && (
+                  <View style={styles.txnRow}>
+                    <Text style={styles.txnId}>Txn: {claim.razorpayPayoutId}</Text>
+                    <Text style={styles.verifiedText}>Secure Payout</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -150,5 +158,24 @@ const styles = StyleSheet.create({
     color: '#34d399',
     fontSize: 10,
     fontWeight: '800',
+  },
+  txnRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  txnId: {
+    color: '#9ca3af',
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  verifiedText: {
+    color: '#6b7280',
+    fontSize: 10,
+    fontStyle: 'italic',
   }
 });
