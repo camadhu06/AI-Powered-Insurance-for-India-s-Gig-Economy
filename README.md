@@ -1,8 +1,10 @@
-# GigWare — Parametric Income Insurance for Food Delivery Partners
+# GigWare — AI-Powered Parametric Income Insurance for Gig Workers
 
 > Every monsoon, every heatwave, every bandh —
 > Zomato and Swiggy partners lose income they can never recover.
 > No insurer covers them. GigWare does — automatically, before they even ask.
+
+> Built for DEVTrails 2026 · Guidewire University Hackathon · Phase 2 Submission
 
 ---
 
@@ -21,6 +23,7 @@
 ---
 
 ## How GigWare Works
+
 ```mermaid
 sequenceDiagram
     participant D as Disruption Source
@@ -49,8 +52,7 @@ sequenceDiagram
 
 ## Parametric Triggers — What Sets Off a Claim
 
-No forms. No assessors. Claims fire automatically when a real-time
-verified event crosses a defined threshold in the worker's active zone.
+No forms. No assessors. Claims fire automatically when a real-time verified event crosses a defined threshold in the worker's active zone.
 
 | Trigger | Threshold | Data Source |
 |---|---|---|
@@ -61,19 +63,12 @@ verified event crosses a defined threshold in the worker's active zone.
 | Curfew / Strike | Verified shutdown confirmed | Google News RSS |
 
 **Strike & curfew detection:**
-GigWare scans Google News RSS every 15 mins for keywords like
-"bandh", "curfew", and "Section 144". A trigger only fires when
-85% confidence is reached across multiple credible sources —
-no rumours, no false payouts.
-
-> Coverage is income loss only.
-> Vehicle damage, health, and accidents are strictly excluded.
+GigWare scans Google News RSS every 15 mins for keywords like "bandh", "curfew", and "Section 144". A trigger only fires when 85% confidence is reached across multiple credible sources — no rumours, no false payouts.
 
 ---
 
 ## Weekly Premium Model
 
-Gig workers earn week to week — GigWare is priced the same way.
 ```mermaid
 flowchart LR
     A[Base Rate\n₹49–₹99/wk] --> B[+ Zone Risk Score]
@@ -87,48 +82,19 @@ flowchart LR
 | Standard Shield | ₹79 | ₹2,500 | Up to 5 days |
 | Full Shield | ₹99 | ₹3,500 | Up to 7 days |
 
-Premium is auto-debited weekly via UPI or bank account — no manual action needed.
-Payouts are processed via Razorpay — supporting UPI, net banking, and wallet transfers.
-GigWare recommends the right plan during onboarding based on the
-worker's zone risk level and average weekly earnings.
-
-> GigWare pays exactly what was lost —
-> but never more than your plan's weekly limit.
-> Plan limits are shown clearly at signup — no hidden terms.
-
----
-
-## Platform Choice
-
-| | Worker App | Admin Dashboard |
-|---|---|---|
-| **Platform** | React Native (Mobile) | React.js (Web) |
-| **Why** | GPS, UPI, and push alerts are mobile-native | Fraud queues and analytics need screen space |
-| **Key Features** | Plan selection, zone status, payout alerts | Loss ratios, fraud review, claim history |
-
-> Mobile is where the data is born. Web is where the data is understood.
-
 ---
 
 ## AI/ML Architecture
 
-AI powers four things in GigWare — pricing, payout, fraud detection, and prediction.
-
----
-
 ### Module 1 — Zone Risk Scoring
-
 | | |
 |---|---|
 | **Input** | Zone's historical rainfall, AQI, flood frequency, seasonal patterns |
 | **Model** | XGBoost classifier |
 | **Output** | Risk score — Low / Medium / High |
-| **Action** | Dynamically recalculates weekly premium every week based on zone risk and season |
-
----
+| **Action** | Dynamically recalculates weekly premium every week |
 
 ### Module 2 — Income Loss Estimator
-
 | | |
 |---|---|
 | **Input** | Disruption duration, severity, worker's average hourly earnings |
@@ -136,25 +102,15 @@ AI powers four things in GigWare — pricing, payout, fraud detection, and predi
 | **Output** | Exact income lost in rupees |
 | **Action** | Payout amount — capped at weekly plan limit |
 
----
-
 ### Module 3 — Intelligent Fraud Detection
-
 | | |
 |---|---|
-| **Input** | GPS, accelerometer, order attempts, claim history, Google Maps traffic data, Zomato/Swiggy platform activity |
+| **Input** | GPS, accelerometer, order attempts, claim history, Google Maps traffic data |
 | **Model** | Anomaly detection model |
-| **Output** | Fraud score 0–100 — thresholds dynamically set by AI based on zone risk and seasonal fraud patterns |
+| **Output** | Fraud score 0–100 |
 | **Action** | Below low threshold → approved. Between thresholds → revalidation. Above high threshold → blocked |
 
-- **Location validation** — GPS cross-checked against Google Maps traffic data
-- **Duplicate prevention** — same disruption cannot trigger more than one payout per worker
-- **Ring detection** — abnormal claim surge in one zone raises scrutiny for all claims in that zone
-
----
-
 ### Module 4 — Predictive Disruption Alerts
-
 | | |
 |---|---|
 | **Input** | Historical weather, AQI, and traffic patterns |
@@ -162,61 +118,26 @@ AI powers four things in GigWare — pricing, payout, fraud detection, and predi
 | **Output** | Disruption probability for next 24 hours |
 | **Action** | Push notification sent to workers in high risk zones |
 
-> GigWare doesn't just protect what workers earn.
-> It helps them earn more.
-
 ---
 
 ## Adversarial Defense & Anti-Spoofing Strategy
 
 > A syndicate of 500 workers. One Telegram group. One coordinated GPS spoof.
-> Fake locations. Mass false payouts. A drained liquidity pool.
 > GigWare was built to stop exactly this.
-
----
-
-### The Core Insight
-
-One person faking their location is easy to catch.
-Hundreds doing it together is a different problem entirely.
-
-GigWare runs two checks on every claim:
-- **Individual check** — was this worker genuinely present during the disruption?
-- **Group check** — is a coordinated attack happening across the zone?
-
-A genuine worker passes both automatically.
-A fraud ring gets caught by the group check — every time.
-
----
 
 ### 1. Anti-Spoofing — 6 Layer Defense
 
 | Layer | How It Works | Genuine Worker | Bad Actor |
 |---|---|---|---|
-| **Mock Location Flag** | Android built-in flag — detects if fake GPS is enabled | Off | Blocked instantly |
-| **Device Integrity** | Play Integrity API (Android) / Apple App Attest (iOS) | Clean device | Tampered device detected |
-| **Cell Tower** | Phone's connected tower must match GPS location | Matches claimed zone | Matches home — not the zone |
-| **Movement Pattern** | Real movement is irregular — fake GPS moves perfectly | Natural movement | Robotic straight lines |
-| **WiFi Cross-check** | Phone scans nearby WiFi — must match claimed zone | Zone networks visible | Only home networks visible |
-| **Platform Activity** | Platform confirms worker was online and attempting orders | Active on Zomato/Swiggy | Never logged in |
----
+| **Mock Location Flag** | Android built-in flag | Off | Blocked instantly |
+| **Device Integrity** | Play Integrity API / Apple App Attest | Clean device | Tampered device detected |
+| **Cell Tower** | Tower must match GPS location | Matches claimed zone | Matches home |
+| **Movement Pattern** | Real movement is irregular | Natural movement | Robotic straight lines |
+| **WiFi Cross-check** | Nearby WiFi must match claimed zone | Zone networks visible | Only home networks |
+| **Platform Activity** | Worker must be online on platform | Active on Zomato/Swiggy | Never logged in |
 
-### 2. Detecting a Coordinated Ring
+### 2. Fraud Flow
 
-| Signal | Why It Exposes a Ring |
-|---|---|
-| Claim velocity | Hundreds of claims in minutes — impossible naturally |
-| UPI destination clustering | Many workers routing payouts to same 2–3 accounts |
-| Device fingerprint similarity | Same spoofing app — identical digital footprint |
-| Registration wave | Mass signups weeks before the attack |
-| Zero platform activity | Hundreds of workers — not one delivery attempted |
-
----
-
-### 3. Protecting Honest Workers
-
-All 6 signals are captured and locked the moment a claim is triggered.
-Fraud thresholds are dynamically set by AI — not hardcoded.
 ```mermaid
 flowchart TD
     C[Claim Triggered\n6 signals locked instantly] --> S{AI Fraud Score}
@@ -228,33 +149,10 @@ flowchart TD
     S -- Above high\nthreshold --> HARD
 ```
 
-> Fraudsters cannot game the recheck by turning off mock GPS
-> or logging into Zomato after being flagged —
-> the original locked data is what gets rechecked, not new data.
-
-- Network drop during bad weather → data locked locally → syncs and pays automatically.
-
----
-## Tech Stack
-
-| Layer | Technology | Language | Why |
-|---|---|---|---|
-| Worker App | React Native | JavaScript | Cross-platform, GPS, UPI, push notifications |
-| Admin Dashboard | React.js | JavaScript | Fast analytics and fraud review dashboard |
-| Backend | Node.js + Express | JavaScript | Real-time trigger processing, fast REST APIs |
-| ML Models | Python + FastAPI | Python | Best for XGBoost, regression, anomaly detection |
-| Database | PostgreSQL | SQL | Reliable, handles policies and claims perfectly |
-| Cache | Redis | — | Fast zone trigger lookups, reduces DB load |
-| Auth | Firebase Auth | — | Phone OTP — perfect for delivery workers |
-| Payments | Razorpay Sandbox | — | UPI, net banking, wallet — free test mode |
-| Weather + Flood | Open-Meteo | — | Free, unlimited calls, all Indian cities |
-| AQI | OpenAQ API | — | Free, official India pollution data |
-| Strike Detection | Google News RSS | — | Free, real-time Indian news scanning |
-| Hosting | Render + Vercel | — | Both free tiers, reliable deployment |
-
 ---
 
 ## System Architecture
+
 ```mermaid
 graph TD
     A[Worker App\nReact Native] --> B[API Gateway\nNode.js + Express]
@@ -273,20 +171,135 @@ graph TD
     I[Open-Meteo\nOpenAQ\nGoogle News RSS] --> D
     J[Google Maps\nZomato/Swiggy] --> E
 
-    B --> K[(PostgreSQL\n+ Redis)]
+    B --> K[(MongoDB)]
     L[Firebase Auth] --> A
 ```
+
 ---
 
-## Development Plan
+## Tech Stack
 
-| Phase | What We Build | Timeline |
+| Layer | Technology |
+|---|---|
+| Worker App | React Native |
+| Admin Dashboard | React.js |
+| Backend | Node.js + Express |
+| ML Service | Python + FastAPI, XGBoost, scikit-learn |
+| Database | MongoDB Atlas |
+| Payments | Razorpay Sandbox |
+| Weather + Flood | Open-Meteo |
+| AQI | OpenAQ API |
+| Strike Detection | Google News RSS |
+
+---
+
+## Project Structure
+
+```
+AI-POWERED-IN.../
+├── admin-web/          # React admin dashboard
+├── backend/            # Node.js API server
+│   ├── .env.example
+│   └── server.js
+├── ml/                 # Python ML microservice
+│   ├── main.py
+│   ├── requirements.txt
+│   └── models/
+│       ├── fraud_xgboost.pkl
+│       └── income_regressor.pkl
+├── user-app/           # React user-facing app
+├── prototype/          # Static HTML prototype
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+# Running Locally(INTRUCTIONS TO RUN THE SOLUTION LOCALLY)
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/get-started) (v20+)
+- [Docker Compose](https://docs.docker.com/compose/) (v2+)
+
+No need to install Node.js, Python, or any other dependencies — Docker handles everything.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/camadhu06/AI-Powered-Insurance-for-India-s-Gig-Economy.git
+cd AI-Powered-Insurance-for-India-s-Gig-Economy
+```
+
+### 2. Set Up Environment Variables
+
+```bash
+cp ./backend/.env.example ./backend/.env
+```
+
+Open `./backend/.env` and fill in your values:
+
+```env
+# MongoDB Atlas connection string
+MONGO_URI=mongodb+srv://<your-username>:<your-password>@cluster0.mongodb.net/?appName=gigware
+
+# Razorpay sandbox keys (https://dashboard.razorpay.com/)
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=rzp_test_xxxxxxxxxxxxxxxx
+```
+
+> `PORT` and `ML_SERVICE_URL` are auto-configured by Docker Compose — don't change them.
+
+### 3. Build and Run
+
+```bash
+docker-compose up --build
+```
+
+### 4. Open the sites
+
+| Service | URL |
+|---|---|
+| User App | http://localhost:8081 |
+| Admin Dashboard | http://localhost:3000 |
+| Backend API | http://localhost:5000 |
+| ML Service | http://localhost:8000 |
+
+### 5. Stop the container
+
+```bash
+docker-compose down
+```
+
+---
+
+## Environment Variables Reference
+
+| Variable | Description | Required |
 |---|---|---|
-| Phase 1 - Foundation | Persona design, trigger logic, anti-spoofing architecture | Mar 4 – Mar 20 ✅ |
-| Phase 2 - Core Build | Worker onboarding, trigger engine, AI income estimator | Mar 21 – Apr 4 |
-| Phase 3 - Intelligence | Fraud detection, UPI payouts, worker app + admin dashboard | Apr 5 – Apr 17 |
+| `MONGO_URI` | MongoDB Atlas connection string | ✅ Yes |
+| `RAZORPAY_KEY_ID` | Razorpay sandbox key ID | ✅ Yes |
+| `RAZORPAY_KEY_SECRET` | Razorpay sandbox secret | ✅ Yes |
+| `PORT` | Backend port (default: 5000) | Optional |
+| `ML_SERVICE_URL` | ML service URL (auto-set by Docker) | Auto |
 
-> *GigWare — Because every delivery partner deserves a safety net that pays itself.*
+> **MongoDB Atlas:** Whitelist your IP under Atlas → Network Access → Add IP Address. To simplify testify, consider allowing access from anywhere (`0.0.0.0/0`) temporarily.
+
+---
+
+## Development Phases
+
+| Phase | What We Built | Timeline |
+|---|---|---|
+| Phase 1 — Foundation | Persona design, trigger logic, anti-spoofing architecture | Mar 4 – Mar 20 ✅ |
+| Phase 2 — Core Build | Worker onboarding, trigger engine, AI income estimator | Mar 21 – Apr 4 ✅ |
+| Phase 3 — Intelligence | Fraud detection, UPI payouts, worker app + admin dashboard | Apr 5 – Apr 17 ✅ |
+
+---
+
+## Pitch Deck
+
+https://drive.google.com/file/d/1merf-1kDTuGv6p7NBOiPBqF4zQ4L6crB/view?usp=drive_link
 
 ## Team
 
@@ -297,8 +310,6 @@ graph TD
 | Member 3 | Jeyani N |
 | Member 4 | Guduru Ritesh |
 
-
 ---
-> Built for DEVTrails 2026 · Guidewire University Hackathon · Phase 1 Submission
 
----
+> *GigWare — Because every delivery partner deserves a safety net that pays itself.*
