@@ -19,7 +19,7 @@ export default function Login({ onLogin }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: username }),
+        body: JSON.stringify({ name: username, password }),
       });
 
       if (res.status === 200) {

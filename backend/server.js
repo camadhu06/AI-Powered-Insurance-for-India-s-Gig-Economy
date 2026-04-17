@@ -58,11 +58,9 @@ const claimSchema = new mongoose.Schema({
 
 const Claim = mongoose.model("Claim", claimSchema);
 
-// ========================
-// Temporary in-memory storage (kept for admin login)
-// ========================
+// Temporary in-memory storage (kept for backwards compatibility if needed)
 let adminUsers = [
-  { id: 0, name: "admin", role: "admin" }
+  { id: 0, name: process.env.ADMIN_USER || "admin", role: "admin" }
 ];
 
 // ========================
@@ -133,21 +131,22 @@ app.post("/login", async (req, res) => {
 });
 
 // ========================
-// ADMIN LOGIN API — by name (in-memory, kept for admin-web)
+// ADMIN LOGIN API — by name & password (env based)
 // ========================
 app.post("/admin-login", (req, res) => {
-  const { name } = req.body;
+  const { name, password } = req.body;
+  
+  const defaultAdmin = process.env.ADMIN_USER || "admin";
+  const defaultPass = process.env.ADMIN_PASS || "1234";
 
-  const user = adminUsers.find(u => u.name === name);
-
-  if (user) {
+  if (name && name.toLowerCase() === defaultAdmin.toLowerCase() && password === defaultPass) {
     res.json({
       message: "Login successful",
-      user
+      user: { id: 0, name: defaultAdmin, role: "admin" }
     });
   } else {
     res.status(404).json({
-      message: "User not found"
+      message: "Invalid username or password"
     });
   }
 });
